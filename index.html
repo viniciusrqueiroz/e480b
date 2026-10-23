@@ -265,7 +265,7 @@ th{color:var(--dim);font-weight:500}
 
 <script>
 'use strict';
-const APP_VERSION = 'v5 · 22/10/2026 23:55';
+const APP_VERSION = 'v6 · 22/10/2026 23:59';
 /* ================= DADOS (manual E-300 / implementação E-500/E-300) ================= */
 // nº, * = no painel, nome ; CC0 ; CC32 ; PC (1-128)
 const TONE_TXT = `001*Grand Piano1;8;64;1
@@ -873,16 +873,34 @@ function describeObj(x){
 function listPorts(kind){
   let x;
   try { x = APP.access[kind]; if (typeof x==='function') x = x.call(APP.access); } catch(e){ diag(kind+': '+e.message); return []; }
-  let arr=[];
-  try {
-    if (!x) arr=[];
-    else if (Array.isArray(x)) arr=x.slice();
-    else if (typeof x.values==='function') arr=Array.from(x.values());
-    else if (typeof x.forEach==='function') x.forEach(p=>arr.push(p));
-    else if (typeof x.length==='number') arr=Array.from(x);
-    else arr=Object.keys(x).map(k=>x[k]);
-  } catch(e){ diag(kind+' (lista): '+e.message); }
-  return arr.filter(p=>p && typeof p==='object').map((p,i)=>({k:(p.id!==undefined && p.id!==null && p.id!=='') ? String(p.id) : kind[0]+i, p, name:p.name||('Porta '+(i+1))}));
+  let arr=[]; const tried=[];
+  const isPort = v => v && typeof v==='object' && !Array.isArray(v);
+  const pushV = v => { if (Array.isArray(v) && v.length===2 && isPort(v[1])) v=v[1]; if (isPort(v)) arr.push(v); };
+  const attempt = (label, fn) => { if (arr.length) return; try { fn(); tried.push(label+'='+arr.length); } catch(e){ tried.push(label+' erro: '+e.message); } };
+  if (!x) return [];
+  attempt('array', ()=>{ if (Array.isArray(x)) x.forEach(pushV); });
+  attempt('values()', ()=>{ if (typeof x.values==='function') iterToArray(x.values()).forEach(pushV); });
+  attempt('forEach', ()=>{ if (typeof x.forEach==='function') x.forEach((a,b)=>pushV(isPort(a)?a:b)); });
+  attempt('keys()+get', ()=>{ if (typeof x.keys==='function' && typeof x.get==='function') iterToArray(x.keys()).forEach(k=>pushV(x.get(k))); });
+  attempt('entries()', ()=>{ if (typeof x.entries==='function') iterToArray(x.entries()).forEach(pushV); });
+  attempt('for…of', ()=>{ if (typeof x[Symbol.iterator]==='function') for (const v of x) pushV(v); });
+  attempt('índices', ()=>{ if (typeof x.length==='number') for (let i=0;i<x.length;i++) pushV(x[i]); });
+  attempt('campos', ()=>{ Object.keys(x).forEach(k=>pushV(x[k])); });
+  if (!arr.length && typeof x.size==='number' && x.size>0){
+    let vt='?'; try { const it=x.values(); vt = describeObj(it) + (it && typeof it.next==='function' ? ' .next' : '') + (it && it[Symbol.iterator] ? ' iterável' : ''); } catch(e){ vt='erro '+e.message; }
+    diag(`${kind}: size=${x.size} mas nenhuma porta lida. Tentativas: ${tried.join(', ')} · values() → ${vt} · campos: ${Object.keys(x).join(',')||'(nenhum)'}`);
+  }
+  return arr.map((p,i)=>{ let id=null; try { id=p.id; } catch(e){} let name=''; try { name=p.name||p.manufacturer||''; } catch(e){}
+    return {k:(id!==undefined && id!==null && id!=='') ? String(id) : kind[0]+i, p, name:name||('Porta '+(i+1))}; });
+}
+// percorre iteradores mesmo quando não têm Symbol.iterator (só .next())
+function iterToArray(it){
+  const a=[]; if (!it) return a;
+  if (Array.isArray(it)) return it.slice();
+  if (typeof it[Symbol.iterator]==='function'){ for (const v of it) a.push(v); if (a.length) return a; }
+  if (typeof it.next==='function'){ for (let i=0;i<256;i++){ const r=it.next(); if (!r || r.done) break; a.push(r.value); } return a; }
+  if (typeof it.length==='number') return Array.from(it);
+  return a;
 }
 let lastPortsTxt='';
 function fillPorts(){

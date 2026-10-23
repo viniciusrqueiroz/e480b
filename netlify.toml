@@ -1,0 +1,9 @@
+# Publicação no Netlify: serve só a pasta public/ (versão embaralhada)
+[build]
+  publish = "public"
+
+# Sempre busca a versão nova do app (evita o iPad ficar com a página antiga em cache)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-cache"

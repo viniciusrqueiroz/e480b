@@ -359,7 +359,7 @@ button.big{padding:12px 18px;font-size:16px;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = 'v14 · 23/10/2026 01:15';
+const APP_VERSION = 'v15 · 23/10/2026 01:10';
 /* ================= DADOS (manual E-300 / implementação E-500/E-300) ================= */
 // nº, * = no painel, nome ; CC0 ; CC32 ; PC (1-128)
 const TONE_TXT = `001*Grand Piano1;8;64;1
@@ -806,8 +806,8 @@ function onMidi(ev){
     if (t===0xC0){ const pc=b[1]+1; const tn=TONES.find(x=>x.msb===APP.pnl.msb && x.lsb===APP.pnl.lsb && x.pc===pc);
       const el=$('#panelTone'); if (el) el.textContent = `Painel: ${tn?tn.name:'?'} (${APP.pnl.msb}·${APP.pnl.lsb}·${pc})`; }
   }
-  // camadas (thru)
-  if (ST.thruAll || ch===ST.thruSrc){
+  // camadas (thru) — pausadas enquanto o Palco está ligado
+  if (!ST.palco.on && (ST.thruAll || ch===ST.thruSrc)){
     if (t===0x90 && b[2]>0){
       const outs=[];
       ST.layers.forEach(L=>{ if (L.on && b[1]>=L.lo && b[1]<=L.hi){ const n=clamp(b[1]+L.tr,0,127); sendRaw([0x90|(L.ch-1),n,b[2]]); outs.push([L.ch,n]); }});
@@ -1158,7 +1158,9 @@ function buildFaders(){
 }
 
 /* ================= MIXER ================= */
-function effVol(ch){ const anySolo = Object.values(ST.parts).some(p=>p.solo); const p=ST.parts[ch]; if (anySolo) return p.solo? p.vol:0; return p.mute?0:p.vol; }
+// com o Palco ligado, só os canais do Palco têm volume; todo o resto (painel, arranjador, camadas) fica em 0
+function palcoSilences(ch){ return !!(ST.palco && ST.palco.on && !ST.palco.slots.some(s=>s.ch===ch)); }
+function effVol(ch){ if (palcoSilences(ch)) return 0; const anySolo = Object.values(ST.parts).some(p=>p.solo); const p=ST.parts[ch]; if (anySolo) return p.solo? p.vol:0; return p.mute?0:p.vol; }
 function sendVols(){ for (let c=1;c<=16;c++) M.cc(c,7,effVol(c),`Volume ch${c}=${effVol(c)}`); }
 const stripEls={};
 function buildMixer(){
@@ -1247,9 +1249,12 @@ function palcoToggle(){
   const P=ST.palco;
   if (!P.on){
     if (!APP.out || !APP.inp){ toast('Escolha Saída e Entrada MIDI primeiro'); return; }
-    P.on=true; setLocal(false); palcoApplyAll(); toast('Palco ligado: o teclado toca pelo app');
+    P.on=true; setLocal(false);
+    for (let c=1;c<=16;c++) if (palcoSilences(c)){ M.cc(c,64,0); M.cc(c,123,0); } // solta notas presas dos outros canais
+    sendVols(); palcoApplyAll(); toast('Palco ligado: só os 4 sons do Palco tocam');
   } else {
-    P.on=false; P.slots.forEach(s=>{ clearInterval(ramps[s.ch]); M.cc(s.ch,64,0); M.cc(s.ch,123,0); }); palcoMap.clear(); setLocal(true); toast('Palco desligado: teclado normal');
+    P.on=false; P.slots.forEach(s=>{ clearInterval(ramps[s.ch]); M.cc(s.ch,64,0); M.cc(s.ch,123,0); }); palcoMap.clear(); setLocal(true);
+    sendVols(); toast('Palco desligado: teclado e mixer voltam ao normal');
   }
   save(); buildPalco();
 }

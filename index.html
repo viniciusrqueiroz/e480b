@@ -829,11 +829,13 @@ function addBleOption(){
 
 /* ================= CONEXÃO ================= */
 async function initMidi(){
+  // navegadores Web MIDI do iPad injetam o suporte depois do carregamento: espera até 5 s
+  for (let i=0; i<25 && !navigator.requestMIDIAccess; i++){ setStatus(false,'Procurando MIDI…'); await new Promise(r=>setTimeout(r,200)); }
   if (!navigator.requestMIDIAccess){
     setStatus(false,'Sem Web MIDI' + (navigator.bluetooth?' (use Bluetooth)':''));
     let framed=false; try { framed = window.top !== window.self; } catch(e){ framed = true; }
     if (framed){ document.querySelector('main').insertAdjacentHTML('afterbegin', `<div class="warnbox"><b>O app está aberto dentro de outra página (ex.: o link do Claude).</b> Nesse modo o navegador não libera MIDI. Abra o arquivo <b>e480b-control.html</b> direto, por um endereço próprio, no seu navegador Web MIDI.</div>`); return; }
-    document.querySelector('main').insertAdjacentHTML('afterbegin', `<div class="warnbox"><b>Este navegador não tem Web MIDI.</b> ${navigator.bluetooth ? 'Você ainda pode conectar um adaptador MIDI Bluetooth (M-VAVE) pelo botão "Bluetooth".' : 'No iPad o Safari não suporta MIDI. Abra este arquivo num navegador com Web MIDI (por exemplo um app "Web MIDI Browser" da App Store) ou no Chrome/Edge do Windows.'} O app abre assim mesmo, e tudo o que seria enviado aparece no Monitor.</div>`);
+    document.querySelector('main').insertAdjacentHTML('afterbegin', `<div class="warnbox"><b>Este navegador não tem Web MIDI.</b> ${navigator.bluetooth ? 'Você ainda pode conectar um adaptador MIDI Bluetooth (M-VAVE) pelo botão "Bluetooth".' : 'No iPad o Safari não suporta MIDI. Abra este arquivo num navegador com Web MIDI (por exemplo um app "Web MIDI Browser" da App Store) ou no Chrome/Edge do Windows.'} O app abre assim mesmo, e tudo o que seria enviado aparece no Monitor.<br><span class="note">Diagnóstico: requestMIDIAccess = ${typeof navigator.requestMIDIAccess} · ${esc(navigator.userAgent)}</span><br><button onclick="location.reload()" style="margin-top:6px">Tentar de novo</button></div>`);
     return;
   }
   try {

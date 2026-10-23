@@ -20,6 +20,7 @@ button:active{transform:scale(.97)}
 button.acc{background:var(--accent);border-color:var(--accent);color:#111;font-weight:600}
 button.on{background:var(--accent);color:#111;border-color:var(--accent)}
 button.small{padding:4px 8px;font-size:13px}
+button.off{color:var(--bad);border-color:var(--bad);text-decoration:line-through}
 button.danger{border-color:var(--bad);color:var(--bad)}
 select,input[type=text],input[type=number],textarea{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:7px 10px}
 textarea{width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
@@ -134,6 +135,18 @@ th{color:var(--dim);font-weight:500}
 <!-- TIMBRES -->
 <section id="sec-tones">
   <h2>Navegador de timbres</h2>
+  <div class="card" style="margin-bottom:10px">
+    <div class="row"><b>Enviar para:</b><div class="chips" id="tgtChips" style="margin:0"></div><span class="grow"></span><span class="note" id="panelTone">Painel: —</span></div>
+    <div class="row" style="margin-top:8px">
+      <span class="note">Canal de cada parte do painel:</span>
+      <label class="note">Upper 1 <select id="mapUpper"></select></label>
+      <label class="note">Upper 2 <select id="mapLayer"></select></label>
+      <label class="note">Lower <select id="mapLower"></select></label>
+      <select id="detWhich"><option value="upper">Upper 1</option><option value="layer">Upper 2</option><option value="lower">Lower</option></select>
+      <button id="btnDetect" class="acc">Detectar</button>
+    </div>
+    <div class="note" id="detectMsg" style="margin-top:6px"></div>
+  </div>
   <div class="row">
     <input type="text" id="tSearch" placeholder="Buscar timbre (ex.: organ, sax, 64)…" style="flex:1;min-width:200px">
     <label class="note"><input type="checkbox" id="tPanel"> só os do painel (*)</label>
@@ -141,7 +154,7 @@ th{color:var(--dim);font-weight:500}
     <button id="tPrev">◀ anterior</button><button id="tNext">próximo ▶</button>
   </div>
   <div class="chips" id="famChips"></div>
-  <p class="note">Toque para enviar ao canal <b class="curch">1</b> (CC0 + CC32 + Program Change). * = timbre que também aparece nos botões do painel. Fonte: lista "Expansion Tones" do manual do E-300.</p>
+  <p class="note">Toque para enviar ao destino escolhido acima (CC0 + CC32 + Program Change). * = timbre que também aparece nos botões do painel. Fonte: lista "Expansion Tones" do manual do E-300.</p>
   <div class="list" id="tList"></div>
 </section>
 
@@ -160,10 +173,16 @@ th{color:var(--dim);font-weight:500}
   </div>
   <h3>Camadas extras (MIDI Thru do app)</h3>
   <div class="card">
-    <p class="note" style="margin-top:0">O que você toca no E-480B chega ao app pelo MIDI OUT e é reenviado para os canais abaixo. Assim dá para somar até 4 timbres extras (ou fazer splits) por cima do som do painel. Precisa das duas ligações MIDI (IN e OUT).</p>
+    <p class="note" style="margin-top:0">O que você toca no E-480B chega ao app pelo MIDI OUT e é reenviado para os canais abaixo. Assim dá para somar até 15 timbres extras (ou fazer splits) por cima do som do painel. Precisa das duas ligações MIDI (IN e OUT). Use canais que o arranjador não usa (teste 3).</p>
     <div class="row"><label class="note">Ouvir o teclado no canal (TX MIDI Ch do painel) <select id="thruSrc"></select></label>
     <label class="note"><input type="checkbox" id="thruAll"> qualquer canal</label></div>
-    <table style="margin-top:8px"><thead><tr><th>Ativa</th><th>Canal destino</th><th>Nota mín.</th><th>Nota máx.</th><th>Transpor</th><th>Timbre</th></tr></thead><tbody id="layers"></tbody></table>
+    <div class="row" style="margin-top:8px">
+      <button id="layerAdd">+ Camada</button>
+      <select id="layerPreset"></select><button id="layerPresetGo" class="acc">Aplicar preset</button>
+      <span class="grow"></span>
+      <button id="layerAllOff">Desligar todas</button>
+    </div>
+    <div style="overflow-x:auto"><table style="margin-top:8px"><thead><tr><th>Ativa</th><th>Canal</th><th>Nota mín.</th><th>Nota máx.</th><th>Transpor</th><th>Pedal</th><th>Timbre</th><th></th></tr></thead><tbody id="layers"></tbody></table></div>
   </div>
 </section>
 
@@ -271,7 +290,7 @@ th{color:var(--dim);font-weight:500}
 
 <script>
 'use strict';
-const APP_VERSION = 'v8 · 23/10/2026 00:10';
+const APP_VERSION = 'v12 · 23/10/2026 00:45';
 /* ================= DADOS (manual E-300 / implementação E-500/E-300) ================= */
 // nº, * = no painel, nome ; CC0 ; CC32 ; PC (1-128)
 const TONE_TXT = `001*Grand Piano1;8;64;1
@@ -582,7 +601,7 @@ function defPart(ch){
     vol:100, pan:64, exp:127, rev:40, cho:0, mute:false, solo:false,
     mod:[64,64,64,64,64,64,64,64], bend:2, coarse:0, fine:0, keyShift:0,
     poly:true, porta:false, portaTime:0, lo:0, hi:127, vsDepth:64, vsOff:64,
-    rx:true, rhythm: ch===10 ? 1 : 0, modDepth:10, modTvf:64, modAmp:64, efx:false,
+    rx:true, hold:true, rhythm: ch===10 ? 1 : 0, modDepth:10, modTvf:64, modAmp:64, efx:false,
     scale:[0,0,0,0,0,0,0,0,0,0,0,0], drums:{}};
 }
 function defState(){
@@ -591,8 +610,8 @@ function defState(){
     rev:{macro:4, char:4, prelpf:0, level:64, time:64, fb:0},
     cho:{macro:2, prelpf:0, level:64, fb:8, delay:80, rate:3, depth:19, toRev:0},
     efx:{type:0, params:Array(20).fill(64), depth:127, toRev:0, toCho:0},
-    layers:[{on:false,ch:2,lo:0,hi:127,tr:0},{on:false,ch:3,lo:0,hi:127,tr:0},{on:false,ch:4,lo:0,hi:127,tr:0},{on:false,ch:5,lo:0,hi:127,tr:0}],
-    thruSrc:1, thruAll:false};
+    layers:[11,12,13,14].map(ch=>({on:false,ch,lo:0,hi:127,tr:0,sus:true})),
+    thruSrc:1, thruAll:false, panelMap:{upper:null, layer:null, lower:null}};
 }
 const LS = {
   get(k,d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
@@ -613,7 +632,8 @@ function blk(ch){ return ch===10 ? 0 : (ch<10 ? ch : ch-1); }
 
 function sendRaw(bytes, label){
   if (!APP.out){ logLine('out', bytes, (label||'') + '  [sem saída MIDI]', true); return false; }
-  try { APP.out.send(bytes); logLine('out', bytes, label); return true; }
+  // array comum + timestamp explícito: a biblioteca antiga do Web MIDI Browser pode descartar envios sem timestamp
+  try { const ts = (window.performance && performance.now) ? performance.now() : 0; APP.out.send(Array.from(bytes), ts); logLine('out', bytes, label); return true; }
   catch(e){ logLine('out', bytes, 'ERRO: '+e.message, true); return false; }
 }
 // fila SysEx com 45 ms entre pacotes (exigência Roland: >= 40 ms) e fusão por endereço
@@ -686,7 +706,7 @@ function decode(b){
 function logLine(dir, bytes, label, err){
   if (APP.paused) return;
   if (dir==='in' && bytes[0]===0xFE && $('#fltAS').checked) return;
-  if (dir==='out' && $('#fltOut').checked) return;
+  if (dir==='out' && !err && $('#fltOut').checked) return;
   const t = new Date(); const ts = t.toTimeString().slice(0,8)+'.'+String(t.getMilliseconds()).padStart(3,'0');
   const txt = `${ts} ${dir==='in'?'◀ IN ':'▶ OUT'} ${hex(bytes)}${label?'   '+label:(dir==='in'?'   '+decode(bytes):'')}`;
   APP.log.push(txt); if (APP.log.length>500) APP.log.shift();
@@ -705,6 +725,13 @@ function onMidi(ev){
   if (st===0xF0){ handleSysex(b); return; }
   if (st>=0xF0) return;
   const ch=(st&15)+1, t=st&0xF0;
+  // timbre escolhido no painel (vem no canal TX)
+  if (ch===ST.thruSrc){
+    if (t===0xB0 && b[1]===0) APP.pnl.msb=b[2];
+    if (t===0xB0 && b[1]===32) APP.pnl.lsb=b[2];
+    if (t===0xC0){ const pc=b[1]+1; const tn=TONES.find(x=>x.msb===APP.pnl.msb && x.lsb===APP.pnl.lsb && x.pc===pc);
+      const el=$('#panelTone'); if (el) el.textContent = `Painel: ${tn?tn.name:'?'} (${APP.pnl.msb}·${APP.pnl.lsb}·${pc})`; }
+  }
   // camadas (thru)
   if (ST.thruAll || ch===ST.thruSrc){
     if (t===0x90 && b[2]>0){
@@ -714,8 +741,10 @@ function onMidi(ev){
     } else if (t===0x80 || (t===0x90 && b[2]===0)){
       const outs = thruMap.get(b[1]); if (outs){ outs.forEach(([c,n])=>sendRaw([0x80|(c-1),n,64])); thruMap.delete(b[1]); }
     } else if (t===0xB0 || t===0xE0){
-      const used = new Set(ST.layers.filter(L=>L.on).map(L=>L.ch));
       if (t===0xB0 && ![1,7,11,64,66,67].includes(b[1])) return;
+      const isPedal = t===0xB0 && [64,66].includes(b[1]);
+      // pedal só vai para as camadas com "Pedal" ligado
+      const used = new Set(ST.layers.filter(L=>L.on && (!isPedal || L.sus!==false)).map(L=>L.ch));
       used.forEach(c=>sendRaw([t|(c-1), b[1], b[2]]));
     }
   }
@@ -938,7 +967,9 @@ function fillPorts(){
   so.innerHTML='<option value="">—</option>'+outs.map(o=>`<option value="${esc(o.k)}">${esc(o.name)}</option>`).join('');
   si.innerHTML='<option value="">—</option>'+ins.map(o=>`<option value="${esc(o.k)}">${esc(o.name)}</option>`).join('');
   if (BLE.chr) addBleOption();
-  const pick=(list,prev)=> list.find(o=>o.k===prev) || (list.length===1?list[0]:null);
+  // prefere a porta usada antes; senão, a única porta que não seja sessão de rede do iPad
+  const isNet = o => /session|sessão|network|rede/i.test(o.name);
+  const pick=(list,prev)=> list.find(o=>o.k===prev) || (()=>{ const real=list.filter(o=>!isNet(o)); return real.length===1 ? real[0] : (list.length===1 ? list[0] : null); })();
   if (prevO==='ble' && BLE.chr) so.value='ble'; else { const po=pick(outs,prevO); if (po) so.value=po.k; }
   if (prevI==='ble' && BLE.chr) si.value='ble'; else { const pi=pick(ins,prevI); if (pi) si.value=pi.k; }
   selectPorts();
@@ -1006,7 +1037,9 @@ function buildMixer(){
     const mute = h('button',{class:'small'+(p.mute?' on':''),on:{click:()=>{p.mute=!p.mute; mute.classList.toggle('on',p.mute); sendVols(); refreshStrips(); save();}}},'M');
     const solo = h('button',{class:'small'+(p.solo?' on':''),on:{click:()=>{p.solo=!p.solo; solo.classList.toggle('on',p.solo); sendVols(); refreshStrips(); save();}}},'S');
     const play = h('button',{class:'small',on:{click:()=>{ setCur(ch); testNote(ch, ch===10?38:60); }}},'▶');
-    const top = h('div',{class:'top'}, h('span',{class:'chn',on:{click:()=>setCur(ch)}}, 'Ch '+ch, ch===10?h('span',{class:'tag p',style:'margin-left:6px'},'bateria'):''), h('span',{class:'row',style:'gap:4px'}, mute, solo, play));
+    const ped = h('button',{class:'small'+(p.hold?'':' off'),title:'Recebe pedal de sustain (Rx Hold1)',on:{click:()=>{ p.hold=!p.hold; ped.classList.toggle('off',!p.hold); if (!p.hold) M.cc(ch,64,0,`Solta sustain ch${ch}`); dt1(PA(ch,0x0F),[p.hold?1:0],`Rx Hold1 ch${ch}=${p.hold?'ON':'OFF'}`); save(); toast(`Canal ${ch}: pedal ${p.hold?'ligado':'desligado'}`); }}},'Ped');
+    const role = h('span',{class:'tag p',style:'margin-left:6px;display:none'});
+    const top = h('div',{class:'top'}, h('span',{class:'chn',on:{click:()=>setCur(ch)}}, 'Ch '+ch, ch===10?h('span',{class:'tag p',style:'margin-left:6px'},'bateria'):'', role), h('span',{class:'row',style:'gap:4px'}, ped, mute, solo, play));
     const sl = [
       slider({label:'Volume',min:0,max:127,value:p.vol,def:100,key:'v'+ch,onChange:v=>{p.vol=v; M.cc(ch,7,effVol(ch),`Volume ch${ch}=${v}`); save();}}),
       slider({label:'Pan',min:0,max:127,value:p.pan,def:64,fmt:fmtPan,key:'p'+ch,onChange:v=>{p.pan=v; M.cc(ch,10,v); save();}}),
@@ -1014,12 +1047,13 @@ function buildMixer(){
       slider({label:'Reverb',min:0,max:127,value:p.rev,def:40,key:'r'+ch,onChange:v=>{p.rev=v; M.cc(ch,91,v); save();}}),
       slider({label:'Chorus',min:0,max:127,value:p.cho,def:0,key:'c'+ch,onChange:v=>{p.cho=v; M.cc(ch,93,v); save();}})];
     const card = h('div',{class:'card strip'+(ch===APP.cur?' cur':''),'data-ch':ch}, top, toneBtn, ...sl);
-    stripEls[ch]={card,toneBtn,mute,solo,sl};
+    stripEls[ch]={card,toneBtn,mute,solo,sl,role};
     box.append(card);
   }
   refreshStrips();
 }
-function refreshStrips(){ for (let c=1;c<=16;c++){ const e=stripEls[c]; if (!e) continue; e.card.classList.toggle('muted', effVol(c)===0); e.toneBtn.textContent = ST.parts[c].name; e.mute.classList.toggle('on',ST.parts[c].mute); e.solo.classList.toggle('on',ST.parts[c].solo);} }
+function refreshStrips(){ for (let c=1;c<=16;c++){ const e=stripEls[c]; if (!e) continue; e.card.classList.toggle('muted', effVol(c)===0); e.toneBtn.textContent = ST.parts[c].name; e.mute.classList.toggle('on',ST.parts[c].mute); e.solo.classList.toggle('on',ST.parts[c].solo);
+  const roles=Object.keys(ROLE_NAMES).filter(k=>ST.panelMap[k]===c).map(k=>ROLE_NAMES[k]); e.role.textContent=roles.join(' + '); e.role.style.display=roles.length?'':'none'; } }
 
 function applyTone(ch, t, preview){
   const p=ST.parts[ch]; p.msb=t.msb; p.lsb=t.lsb; p.pc=t.pc; p.name=t.name; p.toneSet=true;
@@ -1043,17 +1077,76 @@ function toneRow(t, onPick){
 function renderToneList(){
   const list=$('#tList'); list.innerHTML='';
   const arr=filteredTones($('#tSearch').value);
-  arr.forEach((t,i)=>{ const r=toneRow(t,()=>{ toneIdx=TONES.indexOf(t); $$('.titem',list).forEach(x=>x.classList.remove('sel')); r.classList.add('sel'); applyTone(APP.cur,t,$('#tPreview').checked); }); if (TONES.indexOf(t)===toneIdx) r.classList.add('sel'); list.append(r); });
+  arr.forEach((t,i)=>{ const r=toneRow(t,()=>{ const tc=targetCh(); if (!tc) return; toneIdx=TONES.indexOf(t); $$('.titem',list).forEach(x=>x.classList.remove('sel')); r.classList.add('sel'); applyTone(tc,t,$('#tPreview').checked); toast(`${targetLabel()} (ch ${tc}): ${t.name}`); }); if (TONES.indexOf(t)===toneIdx) r.classList.add('sel'); list.append(r); });
   if (!arr.length) list.append(h('div',{class:'note',style:'padding:12px'},'Nada encontrado.'));
 }
 function stepTone(d){
   const arr=filteredTones($('#tSearch').value); if (!arr.length) return;
   let i = arr.findIndex(t=>TONES.indexOf(t)===toneIdx); i = (i+d+arr.length)%arr.length;
-  toneIdx=TONES.indexOf(arr[i]); applyTone(APP.cur,arr[i],$('#tPreview').checked); renderToneList();
+  const tc=targetCh(); if (!tc) return;
+  toneIdx=TONES.indexOf(arr[i]); applyTone(tc,arr[i],$('#tPreview').checked); renderToneList();
   const sel=$('#tList .sel'); if (sel) sel.scrollIntoView({block:'nearest'});
-  toast(`Ch ${APP.cur}: ${arr[i].name}`);
+  toast(`${targetLabel()} (ch ${tc}): ${arr[i].name}`);
+}
+/* ---- partes do painel: Upper 1 / Upper 2 (Layer) / Lower ---- */
+const ROLE_NAMES = {upper:'Upper 1', layer:'Upper 2', lower:'Lower'};
+APP.target='cur'; APP.pnl={msb:0,lsb:0};
+function targetLabel(){ return APP.target==='cur' ? 'Canal '+APP.cur : ROLE_NAMES[APP.target]; }
+function targetCh(){
+  if (APP.target==='cur') return APP.cur;
+  const c=ST.panelMap[APP.target];
+  if (!c){ toast(`Defina o canal do ${ROLE_NAMES[APP.target]} (ou use "Detectar")`); return null; }
+  return c;
+}
+function buildPanelMap(){
+  const chips=$('#tgtChips'); chips.innerHTML='';
+  [['upper','Upper 1'],['layer','Upper 2'],['lower','Lower'],['cur','Canal atual']].forEach(([k,l])=>{
+    const b=h('button',{class:APP.target===k?'on':'',on:{click:()=>{ APP.target=k; $$('#tgtChips button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); }}}, l + (k!=='cur' && ST.panelMap[k] ? ` · ch${ST.panelMap[k]}` : ''));
+    chips.append(b);
+  });
+  [['#mapUpper','upper'],['#mapLayer','layer'],['#mapLower','lower']].forEach(([sel,k])=>{
+    const s=$(sel); s.innerHTML='';
+    s.append(h('option',{value:''},'?'), ...Array.from({length:16},(_,i)=>h('option',{value:i+1,selected:ST.panelMap[k]===i+1},String(i+1))));
+    s.onchange=e=>{ ST.panelMap[k]= e.target.value ? +e.target.value : null; save(); buildPanelMap(); refreshStrips(); };
+  });
+  $('#btnDetect').onclick=()=>detectPart($('#detWhich').value);
+}
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+async function readAllTones(){
+  APP.readParts={};
+  for (let c=1;c<=16;c++) rq1(PA(c,0x00),[0,0,2],`RQ1 tone ch${c}`);
+  await sleep(16*45 + 1500);
+  const snap={}; for (let c=1;c<=16;c++){ const r=APP.readParts[c]; if (r && r.msb!==undefined && r.pc) snap[c]=r.msb+'/'+r.pc; }
+  return snap;
+}
+async function detectPart(which){
+  const msg=$('#detectMsg'), nm=ROLE_NAMES[which];
+  if (!APP.out || !APP.inp){ msg.textContent='Precisa de Saída e Entrada MIDI selecionadas (ida e volta) para detectar.'; return; }
+  msg.textContent='Lendo os timbres de todos os canais…';
+  const a=await readAllTones();
+  if (!Object.keys(a).length){
+    msg.innerHTML='O teclado não respondeu à leitura por SysEx (RQ1). Faça manualmente: no Mixer, toque ▶ em cada canal e veja qual soa com o mesmo timbre do <b>'+esc(nm)+'</b> do painel; depois escolha o canal no menu acima.';
+    return;
+  }
+  msg.innerHTML=''; msg.append(`Leitura feita (${Object.keys(a).length} canais). Agora, no painel do E-480B, selecione o ${nm} e troque o timbre dele para outro bem diferente. Depois toque em `,
+    h('button',{class:'acc small',on:{click:async()=>{
+      msg.textContent='Lendo de novo…';
+      const b2=await readAllTones();
+      const changed=Object.keys(b2).filter(c=>a[c]!==b2[c]).map(Number);
+      if (changed.length===1){
+        ST.panelMap[which]=changed[0]; save(); buildPanelMap(); refreshStrips();
+        const r=APP.readParts[changed[0]]; const tn=TONES.filter(t=>t.msb===r.msb && t.pc===r.pc).map(t=>t.name).join(' / ');
+        msg.textContent=`✅ ${nm} = canal ${changed[0]} (timbre agora: ${tn||r.msb+'/'+r.pc}).`;
+        markTest('rq1','ok');
+      } else if (!changed.length){
+        msg.textContent='Nenhum canal mudou. Confirme que trocou o timbre do '+nm+' no painel e tente de novo.';
+      } else {
+        msg.textContent=`Mudaram vários canais (${changed.join(', ')}). Troque só o timbre do ${nm}, sem mexer em estilo/registro, e tente de novo — ou escolha manualmente.`;
+      }
+    }}},'Pronto'), '.');
 }
 function buildTones(){
+  buildPanelMap();
   const chips=$('#famChips');
   const all=h('button',{class:'on',on:{click:()=>{famFilter=null; $$('#famChips button').forEach(b=>b.classList.remove('on')); all.classList.add('on'); renderToneList();}}},'Todos');
   chips.append(all);
@@ -1112,17 +1205,52 @@ function bindKeyboard(){
 }
 function chOptions(sel){ return Array.from({length:16},(_,i)=>h('option',{value:i+1,selected:i+1===sel},String(i+1))); }
 function noteOptions(sel){ return Array.from({length:128},(_,i)=>h('option',{value:i,selected:i===sel},`${noteName(i)} (${i})`)); }
+// presets de camadas: [nº do timbre, nota mín., nota máx., transpor, pedal]
+const LAYER_PRESETS = {
+  'Orquestra (cordas + metais + coro)': [[146,0,127,0,true],[169,0,127,0,true],[159,0,127,0,true]],
+  'Piano + Pad': [[224,0,127,0,true]],
+  'Cordas lentas + Pad': [[148,0,127,0,true],[224,0,127,0,true]],
+  'Sanfona + Cordas': [[74,0,127,0,true],[148,0,127,0,true]],
+  'Baixo na mão esquerda (até B2)': [[118,0,47,-12,false]],
+  'Baixo esquerda + Cordas direita': [[118,0,47,-12,false],[146,48,127,0,true]],
+  'Órgão + Coro': [[50,0,127,0,true],[159,0,127,0,true]],
+  'Metais oitavados': [[169,0,127,0,false],[169,0,127,12,false]]
+};
+function freeChannels(){
+  const used=new Set([10, ST.thruSrc, ...Object.values(ST.panelMap||{}).filter(Boolean)]);
+  return [11,12,13,14,15,16,9,8,7,6,5,4,3,2,1].filter(c=>!used.has(c));
+}
+function applyLayerPreset(name){
+  const P=LAYER_PRESETS[name]; if (!P) return;
+  const free=freeChannels();
+  ST.layers.forEach(L=>L.on=false);
+  P.forEach((row,i)=>{
+    const [no,lo,hi,tr,sus]=row, t=TONES.find(x=>x.no===no), ch=free[i];
+    if (!t || !ch) return;
+    let L=ST.layers[i]; if (!L){ L={}; ST.layers.push(L); }
+    Object.assign(L,{on:true,ch,lo,hi,tr,sus});
+    applyTone(ch,t,false); dt1(PA(ch,0x0F),[1]); ST.parts[ch].hold=true;
+  });
+  save(); renderLayers(); refreshStrips(); toast(`Preset "${name}" aplicado nos canais ${free.slice(0,P.length).join(', ')}`);
+}
 function renderLayers(){
   const tb=$('#layers'); tb.innerHTML='';
   ST.layers.forEach((L,i)=>{
-    const on=h('input',{type:'checkbox',checked:L.on,on:{change:e=>{L.on=e.target.checked; save();}}});
+    if (L.sus===undefined) L.sus=true;
+    const on=h('input',{type:'checkbox',checked:L.on,on:{change:e=>{L.on=e.target.checked; if (!L.on) M.cc(L.ch,123,0,`All notes off ch${L.ch}`); save();}}});
     const ch=h('select',{on:{change:e=>{L.ch=+e.target.value; save(); renderLayers();}}},...chOptions(L.ch));
     const lo=h('select',{on:{change:e=>{L.lo=+e.target.value; save();}}},...noteOptions(L.lo));
     const hi=h('select',{on:{change:e=>{L.hi=+e.target.value; save();}}},...noteOptions(L.hi));
     const tr=h('input',{type:'number',min:-36,max:36,value:L.tr,style:'width:70px',on:{change:e=>{L.tr=clamp(+e.target.value,-36,36); save();}}});
+    const sus=h('button',{class:'small'+(L.sus?' on':''),on:{click:e=>{ L.sus=!L.sus; e.target.classList.toggle('on',L.sus); e.target.textContent=L.sus?'Sim':'Não'; if (!L.sus) M.cc(L.ch,64,0,`Solta sustain ch${L.ch}`); save(); }}}, L.sus?'Sim':'Não');
     const tn=h('button',{class:'small',on:{click:()=>openToneModal(L.ch)}}, ST.parts[L.ch].name);
-    tb.append(h('tr',{},h('td',{},on),h('td',{},ch),h('td',{},lo),h('td',{},hi),h('td',{},tr),h('td',{},tn)));
+    const del=h('button',{class:'small danger',title:'Remover camada',on:{click:()=>{ if (L.on) M.cc(L.ch,123,0); ST.layers.splice(i,1); save(); renderLayers(); }}},'✕');
+    tb.append(h('tr',{},h('td',{},on),h('td',{},ch),h('td',{},lo),h('td',{},hi),h('td',{},tr),h('td',{},sus),h('td',{},tn),h('td',{},del)));
   });
+  $('#layerAdd').onclick=()=>{ if (ST.layers.length>=15){ toast('Máximo de 15 camadas'); return; } const used=new Set(ST.layers.map(L=>L.ch)); const ch=freeChannels().find(c=>!used.has(c))||11; ST.layers.push({on:false,ch,lo:0,hi:127,tr:0,sus:true}); save(); renderLayers(); };
+  const ps=$('#layerPreset'); if (!ps.options.length){ ps.append(h('option',{value:''},'Presets…'), ...Object.keys(LAYER_PRESETS).map(k=>h('option',{value:k},k))); }
+  $('#layerPresetGo').onclick=()=>{ if (ps.value) applyLayerPreset(ps.value); };
+  $('#layerAllOff').onclick=()=>{ ST.layers.forEach(L=>{ if (L.on) M.cc(L.ch,123,0); L.on=false; }); save(); renderLayers(); toast('Camadas desligadas'); };
   const src=$('#thruSrc'); src.innerHTML=''; chOptions(ST.thruSrc).forEach(o=>src.append(o));
   src.onchange=e=>{ST.thruSrc=+e.target.value; save();};
   $('#thruAll').checked=ST.thruAll; $('#thruAll').onchange=e=>{ST.thruAll=e.target.checked; save();};
@@ -1274,6 +1402,7 @@ function sendAll(){
     if (p.lo!==0) dt1(PA(ch,0x1D),[p.lo]); if (p.hi!==127) dt1(PA(ch,0x1E),[p.hi]);
     if (!p.poly) dt1(PA(ch,0x13),[0]);
     if (!p.rx) dt1(PA(ch,0x02),[0x10]);
+    if (p.hold===false) dt1(PA(ch,0x0F),[0]);
     if (p.rhythm!==(ch===10?1:0)) dt1(PA(ch,0x15),[p.rhythm]);
     if (p.scale.some(v=>v)) dt1(PA(ch,0x40), p.scale.map(v=>clamp(v+64,0,127)));
     Object.entries(p.drums||{}).forEach(([n,d])=>{ n=+n; if (d.pitch!==64) M.nrpn(ch,0x18,n,d.pitch); if (d.level!=null) M.nrpn(ch,0x1A,n,d.level); if (d.pan!=null) M.nrpn(ch,0x1C,n,d.pan); if (d.rev!=null) M.nrpn(ch,0x1D,n,d.rev); if (d.cho!=null) M.nrpn(ch,0x1E,n,d.cho); });
@@ -1287,8 +1416,9 @@ function sendAll(){
 function scenes(){ return LS.get('e480b_scenes', {}); }
 function fillScenes(){ const s=$('#sceneSel'); const cur=s.value; s.innerHTML='<option value="">Cenas…</option>'+Object.keys(scenes()).sort().map(n=>`<option>${esc(n)}</option>`).join(''); s.value=cur; }
 function loadState(obj){
-  const layers=ST.layers, thruSrc=ST.thruSrc, thruAll=ST.thruAll;
+  const layers=ST.layers, thruSrc=ST.thruSrc, thruAll=ST.thruAll, panelMap=ST.panelMap;
   ST=Object.assign(defState(), JSON.parse(JSON.stringify(obj)));
+  ST.panelMap=panelMap; // o mapeamento do painel é do aparelho, não da cena
   for (let c=1;c<=16;c++) ST.parts[c]=Object.assign(defPart(c), ST.parts[c]||{});
   if (!obj.layers){ ST.layers=layers; ST.thruSrc=thruSrc; ST.thruAll=thruAll; }
   save(); buildMixer(); buildFx(); renderEditor(); renderLayers(); $('#mVol').value=ST.master.vol; sendAll();

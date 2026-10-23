@@ -1,0 +1,1307 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>E-480B Control</title>
+<style>
+:root{
+  --bg:#121417; --panel:#1b1e23; --panel2:#23272e; --line:#2f343c;
+  --text:#e8eaed; --dim:#9aa1ab; --accent:#ff7a1a; --accent2:#ffb36b;
+  --ok:#3ecf8e; --bad:#ff5a5a; --warn:#f5c542; --blue:#4da3ff;
+  --r:12px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;touch-action:manipulation}
+button:active{transform:scale(.97)}
+button.acc{background:var(--accent);border-color:var(--accent);color:#111;font-weight:600}
+button.on{background:var(--accent);color:#111;border-color:var(--accent)}
+button.small{padding:4px 8px;font-size:13px}
+button.danger{border-color:var(--bad);color:var(--bad)}
+select,input[type=text],input[type=number],textarea{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:7px 10px}
+textarea{width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+header{position:sticky;top:0;z-index:20;background:#0d0f12;border-bottom:1px solid var(--line);padding:10px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+header h1{font-size:17px;margin:0 8px 0 0;letter-spacing:.5px}
+header h1 b{color:var(--accent)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:var(--panel2);font-size:13px;color:var(--dim)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad)}
+.dot.ok{background:var(--ok)}
+.grow{flex:1}
+nav{position:sticky;top:57px;z-index:19;background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:4px;overflow-x:auto;padding:6px 10px;align-items:center}
+nav button{border:none;background:none;color:var(--dim);white-space:nowrap;padding:8px 12px}
+nav button.sel{color:#111;background:var(--accent);font-weight:600}
+nav .chsel{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--dim);font-size:13px;white-space:nowrap}
+main{padding:14px;max-width:1400px;margin:0 auto}
+section{display:none}
+section.show{display:block}
+h2{font-size:18px;margin:4px 0 12px}
+h3{font-size:15px;margin:14px 0 8px;color:var(--accent2)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grid{display:grid;gap:10px}
+.g2{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.g3{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.g4{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.note{color:var(--dim);font-size:13px}
+.warnbox{border:1px solid var(--warn);background:#2a2412;color:#f3e3b0;border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:12px}
+.sl{display:grid;grid-template-columns:96px 1fr 52px;gap:6px;align-items:center;font-size:13px}
+.sl label{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sl output{text-align:right;font-variant-numeric:tabular-nums}
+.strip .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.strip .chn{font-weight:700;font-size:16px}
+.strip .tone{width:100%;text-align:left;margin-bottom:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border-color:#3a3f48}
+.strip.cur{border-color:var(--accent)}
+.strip.muted{opacity:.55}
+.tag{font-size:11px;padding:1px 6px;border-radius:6px;background:var(--panel2);color:var(--dim)}
+.tag.p{background:#3a2a17;color:var(--accent2)}
+.list{max-height:62vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.titem{display:grid;grid-template-columns:44px 1fr auto auto;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+.titem:hover,.titem.sel{background:var(--panel2)}
+.titem .n{color:var(--dim);font-variant-numeric:tabular-nums}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chips button{padding:5px 10px;font-size:13px;border-radius:99px}
+#log{height:52vh;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:#0b0c0e;border:1px solid var(--line);border-radius:10px;padding:8px}
+#log .l{white-space:pre-wrap;border-bottom:1px solid #1a1d21;padding:2px 0}
+#log .in{color:#8fd3ff}#log .out{color:#ffc58f}#log .err{color:var(--bad)}
+.kbd{position:relative;height:170px;user-select:none;-webkit-user-select:none;touch-action:none;margin-top:8px}
+.kbd .w{position:absolute;top:0;height:100%;background:#f1f1f1;border:1px solid #888;border-radius:0 0 6px 6px}
+.kbd .b{position:absolute;top:0;height:60%;background:#151515;border:1px solid #000;border-radius:0 0 4px 4px;z-index:2}
+.kbd .down{background:var(--accent)!important}
+.kbd .lbl{position:absolute;bottom:6px;width:100%;text-align:center;font-size:11px;color:#555}
+.pads{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.pad{height:64px;font-size:12px;border-radius:10px;background:var(--panel2);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.pad.sel{outline:2px solid var(--accent)}
+.pad .k{color:var(--dim);font-size:11px}
+.test{border-left:4px solid var(--line)}
+.test.ok{border-left-color:var(--ok)}.test.bad{border-left-color:var(--bad)}.test.q{border-left-color:var(--warn)}
+.test h4{margin:0 0 6px;font-size:15px}
+.test p{margin:4px 0 8px;color:var(--dim);font-size:13.5px}
+.res button{padding:4px 10px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000c;border:1px solid var(--line);padding:10px 16px;border-radius:12px;z-index:99;font-size:14px;transition:opacity .3s;pointer-events:none}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{border-bottom:1px solid var(--line);padding:6px;text-align:left}
+th{color:var(--dim);font-weight:500}
+.modal{position:fixed;inset:0;background:#000a;z-index:50;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.show{display:flex}
+.modal .card{width:min(760px,100%);max-height:92vh;overflow:auto}
+.chbtns{display:flex;flex-wrap:wrap;gap:4px}
+.chbtns button{width:42px;padding:6px 0}
+@media (max-width:700px){nav{top:94px}.sl{grid-template-columns:80px 1fr 44px}}
+</style>
+</head>
+<body>
+<header>
+  <h1><b>E-480B</b> Control</h1>
+  <span class="pill"><span class="dot" id="dot"></span><span id="status">Sem MIDI</span></span>
+  <label class="note">Saída <select id="outSel"><option value="">—</option></select></label>
+  <label class="note">Entrada <select id="inSel"><option value="">—</option></select></label>
+  <button id="btnBle" title="Conectar um adaptador MIDI Bluetooth (ex.: M-VAVE)">Bluetooth</button>
+  <span class="grow"></span>
+  <button id="btnSendAll" title="Envia o estado inteiro do app para o teclado">Enviar tudo</button>
+  <button id="btnGS">GS Reset</button>
+  <button id="btnPanic" class="danger">Pânico</button>
+</header>
+<nav id="nav"></nav>
+<main>
+
+<!-- MIXER -->
+<section id="sec-mixer">
+  <div class="row" style="margin-bottom:10px">
+    <h2 style="margin:0">Mixer de 16 partes</h2><span class="grow"></span>
+    <label class="note">Master <input type="range" id="mVol" min="0" max="127" value="127" style="width:140px;vertical-align:middle"></label>
+    <select id="sceneSel"><option value="">Cenas…</option></select>
+    <button id="sceneLoad">Carregar</button>
+    <button id="sceneSave" class="acc">Salvar cena</button>
+    <button id="sceneDel" class="small danger">Apagar</button>
+    <button id="sceneExp" class="small">Exportar</button>
+    <button id="sceneImp" class="small">Importar</button>
+    <input type="file" id="sceneFile" accept=".json" hidden>
+  </div>
+  <p class="note" style="margin-top:0">Cada parte = um canal MIDI do gerador GS do teclado. O canal 10 é a bateria. O app não sabe o que o teclado está usando por dentro: os valores mostrados são os últimos que o app enviou.</p>
+  <div class="grid g4" id="strips"></div>
+</section>
+
+<!-- TIMBRES -->
+<section id="sec-tones">
+  <h2>Navegador de timbres</h2>
+  <div class="row">
+    <input type="text" id="tSearch" placeholder="Buscar timbre (ex.: organ, sax, 64)…" style="flex:1;min-width:200px">
+    <label class="note"><input type="checkbox" id="tPanel"> só os do painel (*)</label>
+    <label class="note"><input type="checkbox" id="tPreview" checked> pré-escuta</label>
+    <button id="tPrev">◀ anterior</button><button id="tNext">próximo ▶</button>
+  </div>
+  <div class="chips" id="famChips"></div>
+  <p class="note">Toque para enviar ao canal <b class="curch">1</b> (CC0 + CC32 + Program Change). * = timbre que também aparece nos botões do painel. Fonte: lista "Expansion Tones" do manual do E-300.</p>
+  <div class="list" id="tList"></div>
+</section>
+
+<!-- TOCAR -->
+<section id="sec-play">
+  <h2>Tocar e camadas</h2>
+  <div class="card">
+    <div class="row">
+      <b>Teclado na tela</b> → canal <b class="curch">1</b>
+      <button id="octDn">Oitava −</button><span id="octLbl">C3</span><button id="octUp">Oitava +</button>
+      <span class="grow"></span>
+      <label class="note" style="width:260px" >Velocity <input type="range" id="vel" min="1" max="127" value="100"></label>
+      <button id="sus">Sustain</button>
+    </div>
+    <div class="kbd" id="kbd"></div>
+  </div>
+  <h3>Camadas extras (MIDI Thru do app)</h3>
+  <div class="card">
+    <p class="note" style="margin-top:0">O que você toca no E-480B chega ao app pelo MIDI OUT e é reenviado para os canais abaixo. Assim dá para somar até 4 timbres extras (ou fazer splits) por cima do som do painel. Precisa das duas ligações MIDI (IN e OUT).</p>
+    <div class="row"><label class="note">Ouvir o teclado no canal (TX MIDI Ch do painel) <select id="thruSrc"></select></label>
+    <label class="note"><input type="checkbox" id="thruAll"> qualquer canal</label></div>
+    <table style="margin-top:8px"><thead><tr><th>Ativa</th><th>Canal destino</th><th>Nota mín.</th><th>Nota máx.</th><th>Transpor</th><th>Timbre</th></tr></thead><tbody id="layers"></tbody></table>
+  </div>
+</section>
+
+<!-- SOM -->
+<section id="sec-edit">
+  <h2>Editor de som — canal <span class="curch">1</span></h2>
+  <div class="row" style="margin-bottom:10px"><span class="note">Canal:</span><div class="chbtns" id="editCh"></div><span class="grow"></span><button id="editReset">Zerar edições deste canal</button></div>
+  <div class="grid g2">
+    <div class="card"><h3 style="margin-top:0">Tone Modify (NRPN, relativo ao timbre)</h3><div id="edMod"></div></div>
+    <div class="card"><h3 style="margin-top:0">Afinação e performance</h3><div id="edTune"></div></div>
+    <div class="card"><h3 style="margin-top:0">Teclado, split e recepção (SysEx)</h3><div id="edPart"></div></div>
+    <div class="card"><h3 style="margin-top:0">Modulação e pitch bend (SysEx)</h3><div id="edCtl"></div></div>
+  </div>
+</section>
+
+<!-- EFEITOS -->
+<section id="sec-fx">
+  <h2>Efeitos</h2>
+  <div class="grid g2">
+    <div class="card"><h3 style="margin-top:0">Reverb</h3><div id="fxRev"></div></div>
+    <div class="card"><h3 style="margin-top:0">Chorus</h3><div id="fxCho"></div></div>
+  </div>
+  <h3>EFX (efeito de inserção) — a testar no E-300/E-480B</h3>
+  <div class="card">
+    <p class="note" style="margin-top:0">A implementação MIDI é a mesma do E-500 e lista um bloco EFX (tipo, 20 parâmetros, envio para reverb/chorus). Não está claro se o E-300 tem esse processador. Escolha um tipo, ligue uma parte e escute. Os 20 parâmetros mudam de significado conforme o tipo (tabela nas pág. 12–16 da implementação).</p>
+    <div class="row"><select id="efxType"></select><button id="efxSend" class="acc">Enviar tipo</button></div>
+    <div class="row" style="margin:10px 0"><span class="note">Ligar EFX nas partes:</span><div class="chbtns" id="efxParts"></div></div>
+    <div class="grid g3" id="efxCtl"></div>
+    <h3>Parâmetros 1–20</h3>
+    <div class="grid g3" id="efxParams"></div>
+  </div>
+</section>
+
+<!-- BATERIA -->
+<section id="sec-drum">
+  <h2>Bateria</h2>
+  <div class="row"><label class="note">Canal <select id="drCh"></select></label>
+  <select id="drSet"></select><button id="drSetSend" class="acc">Selecionar kit</button>
+  <button id="drMake">Tornar este canal uma parte de bateria</button></div>
+  <p class="note">Toque num pad para tocar e selecionar. Os ajustes valem para a nota escolhida (NRPN de bateria). Nomes = kit Standard.</p>
+  <div class="grid g2">
+    <div class="card"><h3 style="margin-top:0">Nota <span id="drNoteLbl">36</span></h3><div id="drCtl"></div><div class="row" style="margin-top:8px"><button id="drReset">Zerar esta nota</button></div></div>
+    <div class="card"><div class="pads" id="pads"></div></div>
+  </div>
+</section>
+
+<!-- ESCALAS -->
+<section id="sec-scale">
+  <h2>Escalas (Scale Tune)</h2>
+  <div class="card">
+    <div class="row"><span class="note">Aplicar nos canais:</span><div class="chbtns" id="scCh"></div></div>
+    <div class="row" style="margin:10px 0"><select id="scPreset"></select><label class="note">Tônica <select id="scRoot"></select></label><button id="scLoad">Carregar preset</button><span class="grow"></span><button id="scSend" class="acc">Enviar</button></div>
+    <div class="grid g3" id="scSl"></div>
+    <p class="note">Ajuste em cents (−64 a +63) para cada nota, vale em todas as oitavas. Valores de "Justa" e "Árabe" vêm da pág. 17 da implementação MIDI.</p>
+  </div>
+</section>
+
+<!-- MONITOR -->
+<section id="sec-mon">
+  <h2>Monitor MIDI e ferramentas</h2>
+  <div class="row" style="margin-bottom:8px">
+    <label class="note"><input type="checkbox" id="fltAS" checked> esconder Active Sensing (FE)</label>
+    <label class="note"><input type="checkbox" id="fltOut"> esconder saída</label>
+    <button id="logPause">Pausar</button><button id="logClear">Limpar</button><button id="logCopy">Copiar log</button>
+  </div>
+  <div id="log"></div>
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card">
+      <h3 style="margin-top:0">Enviar bytes (hex)</h3>
+      <textarea id="rawHex" rows="3" placeholder="Ex.: F0 41 10 42 12 40 01 30 02 ?? F7  (use ?? para checksum automático)"></textarea>
+      <div class="row" style="margin-top:6px"><button id="rawSend" class="acc">Enviar</button><span class="note">Mensagens Roland: "??" antes do F7 vira checksum.</span></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Ler o teclado</h3>
+      <div class="row">
+        <button id="btnId">Identity Request</button>
+        <button id="btnReadParts">Ler partes (RQ1)</button>
+        <button id="btnDump">Backup (bulk dump)</button>
+        <button id="btnSyx">Enviar .syx</button><input type="file" id="syxFile" accept=".syx,.bin" hidden>
+      </div>
+      <p class="note" id="idRes">Identity: —</p>
+      <table><thead><tr><th>Canal</th><th>Rx</th><th>CC0</th><th>PC</th><th>Possível timbre</th></tr></thead><tbody id="partsTbl"></tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- TESTES -->
+<section id="sec-tests">
+  <h2>Roteiro de testes</h2>
+  <div class="row" style="margin-bottom:10px"><span class="note">Marque o resultado de cada teste. Fica salvo neste navegador.</span><span class="grow"></span><button id="testsExport">Copiar resultados</button></div>
+  <div class="grid g2" id="tests"></div>
+</section>
+</main>
+
+<div class="modal" id="toneModal"><div class="card">
+  <div class="row"><b>Timbre para o canal <span id="tmCh"></span></b><span class="grow"></span><button id="tmClose">Fechar</button></div>
+  <input type="text" id="tmSearch" placeholder="Buscar…" style="width:100%;margin:10px 0">
+  <div class="list" id="tmList" style="max-height:65vh"></div>
+</div></div>
+<div class="toast" id="toast" style="opacity:0"></div>
+
+<script>
+'use strict';
+/* ================= DADOS (manual E-300 / implementação E-500/E-300) ================= */
+// nº, * = no painel, nome ; CC0 ; CC32 ; PC (1-128)
+const TONE_TXT = `001*Grand Piano1;8;64;1
+002*Grand Piano2;8;64;2
+003*UprightPiano;16;64;1
+004*MIDI Piano1;0;65;1
+005*MIDI Piano2;0;65;2
+006 Piano 1;0;0;1
+007 Piano 2;0;0;2
+008 Piano 3;0;0;3
+009 EG+Rhodes 1;0;65;3
+010 EG+Rhodes 2;0;66;3
+011*Rock Piano;8;64;3
+012*Honky-tonk 1;8;64;4
+013*Honky-tonk 2;8;0;4
+014*E.Piano 1;16;64;5
+015*E.Piano 2;16;64;6
+016 E.Piano 3;0;65;6
+017 Hard Rhodes;0;65;5
+018 Detuned EP 1;8;0;5
+019 Detuned EP 2;8;0;6
+020*Soft E.Piano;8;64;5
+021 FM+SA EP;16;2;5
+022*60's E.Piano;24;0;5
+023*Hard E.Piano;0;64;6
+024 St.FM EP;8;64;6
+025 Hard FM EP;8;66;6
+026 E.Piano 1 (GS);0;0;5
+027 E.Piano 1v;16;0;5
+028 GS E.Piano2;0;0;6
+029 E.Piano 2v;16;0;6
+030*Harpsichord1;0;64;7
+031*Harpsichord2;8;64;7
+032 Harpsichord;0;0;7
+033 Coupled Hps.;8;0;7
+034 Harpsi.o;24;0;7
+035*Clav.;0;0;8
+036 Analog Clav.;0;64;8
+037*Celesta;0;0;9
+038*Glockenspiel;0;0;10
+039*Music Box;0;0;11
+040*Vibraphone;0;64;12
+041*Marimba;8;0;13
+042*Barafon;8;64;13
+043*Xylophone;0;0;14
+044*Tubular-bell;0;0;15
+045*Santur;0;64;16
+046*Jazz Organ 1;32;0;18
+047*Jazz Organ 2;32;64;18
+048*Jazz Organ 3;8;64;18
+049*Jazz Organ 4;0;65;18
+050*Full Organ 1;0;65;17
+051*Full Organ 2;8;65;17
+052*Full Organ 3;16;65;17
+053*Full Organ 4;32;65;17
+054*Lower Organ1;0;66;17
+055*Lower Organ2;8;66;17
+056 Organ 1;0;0;17
+057 Organ 2;0;0;18
+058*Pop Organ;18;0;17
+059*VS Organ;32;64;17
+060 Metalic Org.;32;66;17
+061 Detuned Or.1;8;0;17
+062 Detuned Or.2;8;0;18
+063*Rock Organ 1;0;64;19
+064*Rock Organ 2;0;0;19
+065 Rotary Org.S;0;65;19
+066 Rotary Org.F;0;66;19
+067*Organ Flute;0;64;20
+068*Church Organ;8;65;20
+069 Digi Church;0;64;21
+070*Theater Org.;16;64;20
+071*Trem.Flute;8;64;20
+072 Pipe Org. Bs;32;65;18
+073*Organ Bass;40;2;17
+074*Accordion;0;64;22
+075 Accordion Fr;0;0;22
+076 Accordion It;8;0;22
+077*Harmonica;0;64;23
+078 GS Harmonica;0;0;23
+079 Bandoneon;0;0;24
+080*Nylon Guitar;0;64;25
+081*Gut Guitar;0;65;25
+082 GS Nylon Gt.;0;0;25
+083 Ukulele;8;0;25
+084 Nylon Gt.o;16;0;25
+085*Steel Guitar;0;64;26
+086 Steel-str.Gt;0;0;26
+087*12str Guitar;8;64;26
+088 12-str.Gt;8;0;26
+089 Nylon+Steel;8;65;26
+090*Mandolin;16;64;26
+091 GS Mandolin;16;0;26
+092*Jazz Guitar;0;0;27
+093 Mellow Gt.;1;2;27
+094*Hawaiian Gt.;8;64;27
+095 GS Hawaiian;8;0;27
+096*JC E.Guitar;0;64;28
+097 Clean Gt.;0;0;28
+098 Chorus Gt.;8;0;28
+099*Muted Gt.;0;0;29
+100 Muted Dis.Gt;0;64;29
+101 Funk Gt.;8;0;29
+102 Funk Gt.2;16;0;29
+103*Overdrive Gt;0;0;30
+104*DistortionGt;0;64;31
+105 GS Dist.Gt.;0;0;31
+106 Dazed Guitar;0;65;31
+107*Rock Rhythm;8;66;31
+108 Rock Rhythm2;0;66;31
+109 Feedback Gt.;8;0;31
+110 Feedback Gt2;9;2;31
+111*Power Guitar;8;65;31
+112 Power Gt.2;8;64;31
+113 5th Dist.;18;2;31
+114 Gt.Harmonics;0;0;32
+115*Acoustic Bs.;0;64;33
+116*A.Bass+Cymbl;0;65;33
+117 GS Ac.Bass;0;0;33
+118*Fingered Bs.;0;64;34
+119 GS Fing.Bass;0;0;34
+120*Picked Bass;0;64;35
+121 GS Picked Bs;0;0;35
+122 Mute PickBs.;0;65;35
+123*Fretless Bs.;0;0;36
+124 Mr.Smooth;5;2;36
+125*Slap Bass 1;0;0;37
+126 Slap Bass 2;0;0;38
+127 Synth Bass 1;0;0;39
+128 Synth Bass 2;0;0;40
+129 Synth Bass 3;8;0;39
+130 Synth Bass 4;8;0;40
+131*SynthBass101;1;0;39
+132 Reso SH Bass;16;2;39
+133 SH101 Bass;16;64;40
+134*Violin;0;64;41
+135 GS Violin;0;0;41
+136 Slow Violin;8;0;41
+137 Viola;0;0;42
+138*Cello;0;64;43
+139 GS Cello;0;0;43
+140 Contrabass;0;0;44
+141 Tremolo Str;0;0;45
+142*PizzicatoStr;0;0;46
+143*Harp;0;64;47
+144 GS Harp;0;0;47
+145 Timpani;0;0;48
+146*Strings;0;64;49
+147 GS Strings;0;0;49
+148*Slow Strings;0;64;50
+149 GS Sl.Str;0;0;50
+150 Warm Strings;9;2;50
+151*Orchestra;8;0;49
+152 Choir Str.;11;2;49
+153*Syn.Strings1;0;0;51
+154 Syn.Strings2;0;0;52
+155 Syn.Strings3;8;0;51
+156*Choir;32;0;53
+157*Pop Voice;0;0;54
+158*SynVox;0;0;55
+159*Choir Oohs;0;64;55
+160*OrchestraHit;0;0;56
+161*Trumpet;0;64;57
+162 GS Trumpet;0;0;57
+163*Trombone;0;64;58
+164 Trombone 2;1;0;58
+165 Tuba;0;0;59
+166*MutedTrumpet;0;0;60
+167*French Horn;0;0;61
+168*Fr.Horn Solo;0;64;61
+169*Brass 1;0;0;62
+170 Brass 2;8;0;62
+171*Synth Brass1;0;0;63
+172*Synth Brass2;0;0;64
+173 Synth Brass3;8;0;63
+174 Synth Brass4;8;0;64
+175 Soft Brass;1;2;64
+176*Soprano Sax;0;64;65
+177 GS Sop.Sax;0;0;65
+178*Alto Sax;0;0;66
+179*Blow Sax;0;64;67
+180 Tenor Sax;0;0;67
+181 Baritone Sax;0;0;68
+182*Oboe;0;64;69
+183 GS Oboe;0;0;69
+184 English Horn;0;0;70
+185*Bassoon;0;0;71
+186*Clarinet;0;0;72
+187 Piccolo;0;0;73
+188 GS Flute;0;0;74
+189*Flute;0;64;74
+190 Recorder;0;0;75
+191*Pan Flute;0;0;76
+192*Blow Pipe;0;64;76
+193 Bottle Blow;0;0;77
+194*Shakuhachi;0;0;78
+195*Whistle;0;0;79
+196*Ocarina;0;0;80
+197*Square Wave;0;0;81
+198 Syn.Square;0;64;81
+199*CC Solo;0;65;81
+200 Square;1;0;81
+201 FM Lead 1;1;64;81
+202 FM Lead 2;0;64;88
+203 JP8 Square;8;64;81
+204*Saw Wave;0;0;82
+205*Saw;1;0;82
+206 Mg Lead;0;64;82
+207 P5 Saw Lead;1;64;82
+208*Doctor Solo;8;0;82
+209 Rhythmic Saw;8;64;82
+210 Waspy Synth;16;2;82
+211*Syn.Calliope;0;0;83
+212 JP8 Pulse;0;64;83
+213 Chiffer Lead;0;0;84
+214 Cheese Saw;0;64;84
+215*Charang;0;0;85
+216 Reso Saw;0;64;85
+217 Solo Vox;0;0;86
+218 RAVE Vox;0;64;86
+219 5th Saw Wave;0;0;87
+220*Bass & Lead;0;0;88
+221 Fat & Perky;2;2;88
+222*Fantasia;0;0;89
+223 Fantasia 2;0;64;89
+224*Warm Pad;0;0;90
+225 Soft Pad;0;64;90
+226*Polysynth;0;0;91
+227 P5 Poly;0;64;91
+228 Space Voice;0;0;92
+229 Heaven II;0;64;92
+230 Bowed Glass;0;0;93
+231*Metal Pad;0;0;94
+232 Halo Pad;0;0;95
+233 JP8 Sqr Pad;0;64;95
+234*Sweep Pad;0;0;96
+235 Sweep Pad 2;0;64;96
+236 Converge;0;66;96
+237 Ice Rain;0;0;97
+238*Soundtrack;0;0;98
+239*Crystal;0;0;99
+240*Vibra Bells;0;64;99
+241 Clear Bells;0;65;99
+242 Soft Crystal;2;2;99
+243 Digi Bells;9;2;99
+244 Syn Mallet;1;0;99
+245*Atmosphere;0;0;100
+246*Harpvox;0;64;100
+247 Nylon Harp;0;65;100
+248 Nylon+Rhodes;0;66;100
+249*Brightness;0;0;101
+250 Goblin;0;0;102
+251 Echo Drops;0;0;103
+252 Echo Bell;1;0;103
+253 Big Panner;0;64;103
+254 Ai-yai-a;1;64;103
+255 Echo Bell 2;1;65;103
+256 Echo Pan;2;0;103
+257 Echo Pan 2;2;64;103
+258 Big Panner 2;4;2;103
+259 Star Theme;0;0;104
+260*Sitar 2;1;0;105
+261*Banjo;0;0;106
+262*Shamisen;0;64;107
+263*Koto;0;0;108
+264*Kalimba;0;0;109
+265 Bagpipe;0;0;110
+266 Fiddle;0;0;111
+267 Shanai;0;0;112
+268 Tinkle Bell;0;0;113
+269*Steel Drums;0;0;115
+270 Falling Down;7;64;126`;
+const TONES = TONE_TXT.trim().split('\n').map(l=>{
+  const m = l.match(/^(\d{3})([* ])(.+);(\d+);(\d+);(\d+)$/);
+  return {no:+m[1], star:m[2]==='*', name:m[3].trim(), msb:+m[4], lsb:+m[5], pc:+m[6]};
+});
+const FAMS = ['Pianos','Perc. cromática','Órgãos','Violões/guitarras','Baixos','Cordas','Conjuntos/vozes','Metais','Palhetas','Sopros','Synth lead','Synth pad','Synth FX','Étnicos','Percussivos','Efeitos'];
+const famOf = pc => FAMS[Math.floor((pc-1)/8)];
+
+const DRUM_SETS = [
+  {name:'Standard', pc:1, lsb:64},{name:'Room', pc:9, lsb:64},{name:'Power', pc:17, lsb:0},
+  {name:'Electronic', pc:25, lsb:0},{name:'TR-808', pc:26, lsb:0},{name:'Dance', pc:26, lsb:64},
+  {name:'Brush', pc:41, lsb:64},{name:'Orchestra', pc:49, lsb:0},{name:'SFX', pc:57, lsb:0}];
+const DRUM_NAMES = {25:'Bar Chime',26:'Finger Snap',27:'High Q',28:'Slap',29:'Scratch Push',30:'Scratch Pull',31:'Sticks',32:'Square Click',33:'Metron. Click',34:'Metron. Bell',35:'Kick 2',36:'Kick 1',37:'Side Stick',38:'Snare 1',39:'Hand Clap',40:'Snare 2',41:'Low Tom 2',42:'Closed HH',43:'Low Tom 1',44:'Pedal HH',45:'Mid Tom 2',46:'Open HH',47:'Mid Tom 1',48:'High Tom 2',49:'Crash 1',50:'High Tom 1',51:'Ride 1',52:'Chinese Cym',53:'Ride Bell',54:'Tambourine',55:'Splash',56:'Cowbell',57:'Crash 2',58:'Vibra-slap',59:'Ride 2',60:'High Bongo',61:'Low Bongo',62:'Mute Hi Conga',63:'Open Hi Conga',64:'Low Conga',65:'High Timbale',66:'Low Timbale',67:'High Agogo',68:'Low Agogo',69:'Cabasa',70:'Maracas',71:'Short Whistle',72:'Long Whistle',73:'Short Guiro',74:'Long Guiro',75:'Claves',76:'Hi Wood Block',77:'Low Wood Block',78:'Mute Cuica',79:'Open Cuica',80:'Mute Triangle',81:'Open Triangle',82:'Shaker',83:'Jingle Bell',84:'Bell Tree',85:'Castanets',86:'Mute Surdo',87:'Open Surdo'};
+
+const REV_MACROS = ['Room 1','Room 2','Room 3','Hall 1','Hall 2','Plate','Delay','Panning Delay'];
+const CHO_MACROS = ['Chorus 1','Chorus 2','Chorus 3','Chorus 4','Feedback Chorus','Flanger','Short Delay','Short Delay (FB)'];
+const EFX_TYPES = [[0,0,'Thru (desligado)'],[1,0,'Equalizer'],[1,1,'Spectrum'],[1,2,'Enhancer'],[1,0x10,'Overdrive'],[1,0x11,'Distortion'],[1,0x20,'Phaser'],[1,0x21,'Auto Wah'],[1,0x22,'Rotary'],[1,0x23,'Stereo Flanger'],[1,0x24,'Step Flanger'],[1,0x30,'Compressor'],[1,0x31,'Limiter'],[1,0x40,'Hexa Chorus'],[1,0x41,'Tremolo Chorus'],[1,0x42,'Stereo Chorus'],[1,0x43,'Space D'],[1,0x50,'Stereo Delay'],[1,0x51,'Modulation Delay'],[1,0x52,'Triple Tap Delay'],[1,0x53,'Quadruple Tap Delay'],[1,0x54,'Time Ctrl Delay'],[1,0x55,'Reverb'],[1,0x56,'Gate Reverb'],[1,0x60,'2 Voice Pitch Shifter'],[1,0x61,'Feedback Pitch Shifter'],[2,0,'Overdrive → Chorus'],[2,1,'Overdrive → Flanger'],[2,2,'Overdrive → Delay'],[2,3,'Distortion → Chorus'],[2,4,'Distortion → Flanger'],[2,5,'Distortion → Delay'],[2,6,'Enhancer → Chorus'],[2,7,'Enhancer → Flanger'],[2,8,'Enhancer → Delay'],[2,9,'Chorus → Delay'],[2,0xA,'Flanger → Delay'],[2,0xB,'Chorus → Flanger'],[0x11,0,'Chorus / Delay'],[0x11,1,'Flanger / Delay'],[0x11,2,'Chorus / Flanger']];
+
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const noteName = n => NOTE_NAMES[n%12] + (Math.floor(n/12)-1);
+const SCALES = {
+  'Igual (temperada)':[0,0,0,0,0,0,0,0,0,0,0,0],
+  'Justa (tônica = C)':[0,-8,4,16,-14,-2,-10,2,14,-16,14,-12],
+  'Árabe (doc. Roland)':[-6,45,-2,-12,-51,-8,43,-4,47,0,-10,-49],
+  'Pitagórica':[0,14,4,-6,8,-2,12,2,16,6,-4,10],
+  'Mesotônica 1/4':[0,-24,-7,10,-14,3,-21,-3,-27,-10,7,-17],
+  'Mi e Si meio-bemol (−50)':[0,0,0,0,-50,0,0,0,0,0,0,-50]
+};
+
+/* ================= ESTADO ================= */
+const NRPN_MOD = [ // [msb, lsb, rótulo]
+  [1,0x08,'Vibrato rate'],[1,0x09,'Vibrato depth'],[1,0x0A,'Vibrato delay'],
+  [1,0x20,'Cutoff (brilho)'],[1,0x21,'Ressonância'],
+  [1,0x63,'Ataque'],[1,0x64,'Decay'],[1,0x66,'Release']];
+function defPart(ch){
+  return {msb:0, lsb:0, pc:1, name: ch===10 ? 'Kit Standard' : '(não enviado)', toneSet:false,
+    vol:100, pan:64, exp:127, rev:40, cho:0, mute:false, solo:false,
+    mod:[64,64,64,64,64,64,64,64], bend:2, coarse:0, fine:0, keyShift:0,
+    poly:true, porta:false, portaTime:0, lo:0, hi:127, vsDepth:64, vsOff:64,
+    rx:true, rhythm: ch===10 ? 1 : 0, modDepth:10, modTvf:64, modAmp:64, efx:false,
+    scale:[0,0,0,0,0,0,0,0,0,0,0,0], drums:{}};
+}
+function defState(){
+  const parts = {}; for (let c=1;c<=16;c++) parts[c]=defPart(c);
+  return {parts, master:{vol:127, key:0},
+    rev:{macro:4, char:4, prelpf:0, level:64, time:64, fb:0},
+    cho:{macro:2, prelpf:0, level:64, fb:8, delay:80, rate:3, depth:19, toRev:0},
+    efx:{type:0, params:Array(20).fill(64), depth:127, toRev:0, toCho:0},
+    layers:[{on:false,ch:2,lo:0,hi:127,tr:0},{on:false,ch:3,lo:0,hi:127,tr:0},{on:false,ch:4,lo:0,hi:127,tr:0},{on:false,ch:5,lo:0,hi:127,tr:0}],
+    thruSrc:1, thruAll:false};
+}
+const LS = {
+  get(k,d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+let ST = Object.assign(defState(), LS.get('e480b_state', {}));
+// garante campos novos em estados antigos
+for (let c=1;c<=16;c++) ST.parts[c] = Object.assign(defPart(c), ST.parts[c]||{});
+let saveT=null; function save(){ clearTimeout(saveT); saveT=setTimeout(()=>LS.set('e480b_state', ST), 300); }
+
+const APP = {access:null, out:null, inp:null, cur:1, oct:4, sus:false, paused:false, log:[], dumpBuf:null, drNote:36, drCh:10};
+
+/* ================= MIDI: núcleo ================= */
+const hex = a => Array.from(a).map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v|0));
+function rolandSum(bytes){ const s = bytes.reduce((a,b)=>a+b,0) % 128; return (128 - s) % 128; }
+function blk(ch){ return ch===10 ? 0 : (ch<10 ? ch : ch-1); }
+
+function sendRaw(bytes, label){
+  if (!APP.out){ logLine('out', bytes, (label||'') + '  [sem saída MIDI]', true); return false; }
+  try { APP.out.send(bytes); logLine('out', bytes, label); return true; }
+  catch(e){ logLine('out', bytes, 'ERRO: '+e.message, true); return false; }
+}
+// fila SysEx com 45 ms entre pacotes (exigência Roland: >= 40 ms) e fusão por endereço
+const sxq=[]; let sxTimer=null;
+function queueSysex(bytes, label, key){
+  if (key){ const i = sxq.findIndex(e=>e.key===key); if (i>=0){ sxq[i] = {bytes,label,key}; return; } }
+  sxq.push({bytes,label,key}); pump();
+}
+function pump(){
+  if (sxTimer) return;
+  const step = () => { const e = sxq.shift(); if (!e){ sxTimer=null; return; } sendRaw(e.bytes, e.label); sxTimer = setTimeout(step, 45); };
+  step();
+}
+function dt1(addr, data, label){
+  const body = [...addr, ...data];
+  const msg = [0xF0,0x41,0x10,0x42,0x12, ...body, rolandSum(body), 0xF7];
+  queueSysex(msg, label || ('DT1 '+hex(addr)), addr.join('.'));
+}
+function rq1(addr, size, label){
+  const body = [...addr, ...size];
+  queueSysex([0xF0,0x41,0x10,0x42,0x11, ...body, rolandSum(body), 0xF7], label || ('RQ1 '+hex(addr)));
+}
+const PA  = (ch,off)=>[0x40, 0x10|blk(ch), off];
+const PA2 = (ch,off)=>[0x40, 0x20|blk(ch), off];
+const PA4 = (ch,off)=>[0x40, 0x40|blk(ch), off];
+
+// throttle por chave para sliders (1 envio por frame)
+const pend = new Map(); let raf=null;
+function throttle(key, fn){ pend.set(key, fn); if (!raf) raf = requestAnimationFrame(()=>{ raf=null; const fs=[...pend.values()]; pend.clear(); fs.forEach(f=>f()); }); }
+
+const M = {
+  noteOn(ch,n,v){ sendRaw([0x90|(ch-1), n&127, v&127], `Note On ch${ch} ${noteName(n)} v${v}`); },
+  noteOff(ch,n){ sendRaw([0x80|(ch-1), n&127, 64], `Note Off ch${ch} ${noteName(n)}`); },
+  cc(ch,c,v,label){ sendRaw([0xB0|(ch-1), c&127, clamp(v,0,127)], label || `CC${c}=${v} ch${ch}`); },
+  pc(ch,p){ sendRaw([0xC0|(ch-1), (p-1)&127], `Program ${p} ch${ch}`); },
+  tone(ch,msb,lsb,pc,name){ M.cc(ch,0,msb,`Bank MSB ${msb} ch${ch}`); M.cc(ch,32,lsb,`Bank LSB ${lsb} ch${ch}`); M.pc(ch,pc); },
+  bend(ch,v14){ sendRaw([0xE0|(ch-1), v14&127, (v14>>7)&127], `Bend ch${ch} ${v14-8192}`); },
+  nrpn(ch,msb,lsb,val,label){
+    const s=0xB0|(ch-1);
+    sendRaw([s,99,msb, s,98,lsb, s,6,clamp(val,0,127), s,99,127, s,98,127], label || `NRPN ${hex([msb,lsb])}=${val} ch${ch}`);
+  },
+  rpn(ch,msb,lsb,vm,vl,label){
+    const s=0xB0|(ch-1);
+    sendRaw([s,101,msb, s,100,lsb, s,6,vm&127, s,38,vl&127, s,101,127, s,100,127], label || `RPN ${msb}/${lsb} ch${ch}`);
+  },
+  gsReset(){ queueSysex([0xF0,0x41,0x10,0x42,0x12,0x40,0x00,0x7F,0x00,0x41,0xF7], 'GS Reset'); },
+  panic(){ for (let c=1;c<=16;c++){ M.cc(c,64,0,null); M.cc(c,120,0,null); M.cc(c,123,0,null); M.cc(c,121,0,null); } toast('Pânico: notas desligadas'); }
+};
+
+/* ================= LOG / DECODIFICAÇÃO ================= */
+const CC_NAMES = {0:'Bank MSB',1:'Modulation',5:'Porta time',6:'Data MSB',7:'Volume',10:'Pan',11:'Expression',32:'Bank LSB',38:'Data LSB',64:'Hold',65:'Portamento',66:'Sostenuto',67:'Soft',84:'Porta ctrl',91:'Reverb',93:'Chorus',98:'NRPN LSB',99:'NRPN MSB',100:'RPN LSB',101:'RPN MSB',120:'All Sound Off',121:'Reset Ctrl',122:'Local',123:'All Notes Off'};
+function decode(b){
+  const st=b[0], ch=(st&15)+1, t=st&0xF0;
+  if (st===0xFE) return 'Active Sensing';
+  if (st===0xF8) return 'Clock'; if (st===0xFA) return 'Start'; if (st===0xFC) return 'Stop';
+  if (st===0xF0){
+    if (b[1]===0x7E && b[3]===6 && b[4]===2) return 'Identity Reply';
+    if (b[1]===0x41 && b[3]===0x42){ const cmd=b[4]===0x12?'DT1':b[4]===0x11?'RQ1':'?'; return `Roland GS ${cmd} @${hex(b.slice(5,8))} dados ${hex(b.slice(8,b.length-2))}`; }
+    return `SysEx (${b.length} bytes)`;
+  }
+  if (t===0x90) return b[2] ? `Note On  ch${ch} ${noteName(b[1])} (${b[1]}) v${b[2]}` : `Note Off ch${ch} ${noteName(b[1])}`;
+  if (t===0x80) return `Note Off ch${ch} ${noteName(b[1])}`;
+  if (t===0xB0) return `CC ch${ch} #${b[1]} ${CC_NAMES[b[1]]||''} = ${b[2]}`;
+  if (t===0xC0) return `Program Change ch${ch} → ${b[1]+1}`;
+  if (t===0xE0) return `Pitch Bend ch${ch} ${((b[2]<<7)|b[1])-8192}`;
+  if (t===0xD0) return `Channel Pressure ch${ch} ${b[1]}`;
+  if (t===0xA0) return `Poly Pressure ch${ch} ${b[1]} ${b[2]}`;
+  return '';
+}
+function logLine(dir, bytes, label, err){
+  if (APP.paused) return;
+  if (dir==='in' && bytes[0]===0xFE && $('#fltAS').checked) return;
+  if (dir==='out' && $('#fltOut').checked) return;
+  const t = new Date(); const ts = t.toTimeString().slice(0,8)+'.'+String(t.getMilliseconds()).padStart(3,'0');
+  const txt = `${ts} ${dir==='in'?'◀ IN ':'▶ OUT'} ${hex(bytes)}${label?'   '+label:(dir==='in'?'   '+decode(bytes):'')}`;
+  APP.log.push(txt); if (APP.log.length>500) APP.log.shift();
+  const el = $('#log'); if (!el) return;
+  const d = document.createElement('div'); d.className='l '+(err?'err':dir); d.textContent=txt; el.appendChild(d);
+  while (el.childNodes.length>500) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ================= ENTRADA MIDI ================= */
+const thruMap = new Map(); // nota original -> lista [ch, nota]
+function onMidi(ev){
+  const b = Array.from(ev.data);
+  logLine('in', b);
+  const st=b[0];
+  if (st===0xF0){ handleSysex(b); return; }
+  if (st>=0xF0) return;
+  const ch=(st&15)+1, t=st&0xF0;
+  // camadas (thru)
+  if (ST.thruAll || ch===ST.thruSrc){
+    if (t===0x90 && b[2]>0){
+      const outs=[];
+      ST.layers.forEach(L=>{ if (L.on && b[1]>=L.lo && b[1]<=L.hi){ const n=clamp(b[1]+L.tr,0,127); sendRaw([0x90|(L.ch-1),n,b[2]]); outs.push([L.ch,n]); }});
+      if (outs.length) thruMap.set(b[1], outs);
+    } else if (t===0x80 || (t===0x90 && b[2]===0)){
+      const outs = thruMap.get(b[1]); if (outs){ outs.forEach(([c,n])=>sendRaw([0x80|(c-1),n,64])); thruMap.delete(b[1]); }
+    } else if (t===0xB0 || t===0xE0){
+      const used = new Set(ST.layers.filter(L=>L.on).map(L=>L.ch));
+      if (t===0xB0 && ![1,7,11,64,66,67].includes(b[1])) return;
+      used.forEach(c=>sendRaw([t|(c-1), b[1], b[2]]));
+    }
+  }
+}
+function handleSysex(b){
+  if (APP.dumpBuf) { APP.dumpBuf.push(...b); $('#btnDump').textContent = `Recebendo… ${APP.dumpBuf.length} bytes`; }
+  if (b[1]===0x7E && b[3]===6 && b[4]===2){
+    const fam = hex(b.slice(6,10)), ver = hex(b.slice(10,14));
+    $('#idRes').textContent = `Identity: fabricante ${hex([b[5]])} (41 = Roland), família ${fam}, versão ${ver}` + (b[5]===0x41 && b[6]===0x42 ? ' → GS (E-500/E-300 esperado: 42 00 01 03)' : '');
+    markTest('id','ok');
+    return;
+  }
+  if (b[1]===0x41 && b[3]===0x42 && b[4]===0x12){
+    const a=b[5], m=b[6], l=b[7], data=b.slice(8,b.length-2);
+    if (a===0x40 && (m&0xF0)===0x10){
+      const bl=m&15, ch = bl===0 ? 10 : (bl<10 ? bl : bl+1);
+      const row = APP.readParts[ch] = APP.readParts[ch] || {};
+      if (l===0x00){ row.msb=data[0]; if (data.length>1) row.pc=data[1]+1; }
+      if (l===0x01){ row.pc=data[0]+1; }
+      if (l===0x02){ row.rx = data[0]===0x10 ? 'OFF' : data[0]+1; }
+      renderReadParts(); markTest('rq1','ok');
+    }
+  }
+}
+APP.readParts = {};
+function renderReadParts(){
+  const tb=$('#partsTbl'); tb.innerHTML='';
+  for (let c=1;c<=16;c++){
+    const r=APP.readParts[c]; if (!r) continue;
+    const cands = (r.msb!==undefined && r.pc) ? TONES.filter(t=>t.msb===r.msb && t.pc===r.pc).map(t=>t.name).join(' / ') : '';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${c}</td><td>${r.rx??''}</td><td>${r.msb??''}</td><td>${r.pc??''}</td><td>${cands||(c===10?'(bateria)':'')}</td>`;
+    tb.appendChild(tr);
+  }
+}
+
+/* ================= BLUETOOTH MIDI (Web Bluetooth, padrão BLE-MIDI) ================= */
+const BLE_SVC='03b80e5a-ede8-4b33-a751-6ce34ec4c700', BLE_CHR='7772e5db-3868-4112-a1a9-f2669d106bf3';
+const BLE = {dev:null, chr:null, chain:Promise.resolve(), sx:null, run:0, mtu:20, name:'', manual:false, tries:0};
+const msgLen = s => (s>=0xF8 || s===0xF6) ? 1 : ((s&0xF0)===0xC0 || (s&0xF0)===0xD0 || s===0xF1 || s===0xF3) ? 2 : 3;
+function splitMsgs(b){ if (b[0]===0xF0) return [b]; const out=[]; let i=0; while (i<b.length){ const s=b[i]; if (!(s&0x80)){ i++; continue; } const L=msgLen(s); out.push(b.slice(i,i+L)); i+=L; } return out; }
+function bleTs(){ const t=Math.floor(performance.now()) & 0x1FFF; return [0x80|((t>>7)&0x3F), 0x80|(t&0x7F)]; }
+// monta pacotes BLE-MIDI de no máx. 20 bytes (MTU padrão)
+function blePackets(bytes){
+  const max=BLE.mtu, pk=[]; const [hd,ts]=bleTs();
+  if (bytes[0]===0xF0){
+    const body = bytes[bytes.length-1]===0xF7 ? bytes.slice(0,-1) : bytes;
+    let p=[hd,ts]; let i=0;
+    while (i<body.length){ if (p.length>=max){ pk.push(p); p=[hd]; } p.push(body[i++]); }
+    if (p.length+2>max){ pk.push(p); p=[hd]; }
+    p.push(ts,0xF7); pk.push(p); return pk;
+  }
+  let p=[hd];
+  for (const m of splitMsgs(bytes)){ if (p.length+1+m.length>max){ pk.push(p); p=[hd]; } p.push(ts,...m); }
+  if (p.length>1) pk.push(p);
+  return pk;
+}
+const bleOut = { id:'ble', get name(){ return 'Bluetooth ' + BLE.name; }, send(bytes){
+  if (!BLE.chr) throw new Error('Bluetooth desconectado');
+  for (const p of blePackets(Array.from(bytes))){
+    const data=new Uint8Array(p);
+    BLE.chain = BLE.chain.then(()=> BLE.chr && (BLE.chr.writeValueWithoutResponse ? BLE.chr.writeValueWithoutResponse(data) : BLE.chr.writeValue(data)))
+      .catch(e=>logLine('out',p,'Erro Bluetooth: '+e.message,true));
+  }
+}};
+const bleIn = { id:'ble', get name(){ return 'Bluetooth ' + BLE.name; } };
+function bleEmit(arr){ if (APP.inp===bleIn) onMidi({data:new Uint8Array(arr)}); }
+function bleParse(d){
+  const n=d.length; let i=1; // d[0] = cabeçalho
+  while (i<n){
+    let b=d[i];
+    if (BLE.sx && !(b&0x80)){ BLE.sx.push(b); i++; continue; }      // continuação de SysEx
+    if (b&0x80){ i++; if (i>=n) break; b=d[i]; }                    // byte de timestamp
+    if (b===0xF7){ if (BLE.sx){ BLE.sx.push(0xF7); bleEmit(BLE.sx); BLE.sx=null; } i++; continue; }
+    if (b===0xF0){ BLE.sx=[0xF0]; i++; continue; }
+    if (b>=0xF8){ bleEmit([b]); i++; continue; }
+    if (b&0x80){ BLE.run=b; i++; } else if (!BLE.run){ i++; continue; } // running status
+    const L=msgLen(BLE.run), msg=[BLE.run];
+    for (let k=1; k<L && i<n && !(d[i]&0x80); k++) msg.push(d[i++]);
+    if (msg.length===L) bleEmit(msg);
+    if (BLE.run>=0xF0) BLE.run=0;
+  }
+}
+async function bleConnect(){
+  if (BLE.chr){ if (confirm('Desconectar '+BLE.name+'?')){ BLE.manual=true; BLE.dev.gatt.disconnect(); } return; }
+  if (BLE.dev){ try { await bleOpen(BLE.dev); return; } catch(e){ /* cai para nova busca */ } }
+  if (!navigator.bluetooth){
+    alert('Este navegador não tem Web Bluetooth.\n\n• Windows/Android: use Chrome ou Edge.\n• iPad: o Safari não tem Web Bluetooth. Pareie o M-VAVE pelo próprio navegador Web MIDI (se ele tiver opção de Bluetooth) ou por um app como GarageBand/AUM/midimittr; depois ele aparece como porta normal em "Saída" e "Entrada".');
+    return;
+  }
+  try {
+    const dev = await navigator.bluetooth.requestDevice({
+      filters:[{services:[BLE_SVC]},{namePrefix:'M-VAVE'},{namePrefix:'MS1'},{namePrefix:'mvave'},{namePrefix:'SINCO'},{namePrefix:'WIDI'}],
+      optionalServices:[BLE_SVC]});
+    await bleOpen(dev);
+  } catch(e){ if (e.name!=='NotFoundError') { toast('Bluetooth: '+e.message); setStatus(!!APP.out, APP.out?APP.out.name:'Sem MIDI'); } }
+}
+async function bleOpen(dev){
+  setStatus(false,'Conectando '+(dev.name||'Bluetooth')+'…');
+  if (BLE.dev!==dev){ dev.addEventListener('gattserverdisconnected', onBleDisc); }
+  BLE.dev=dev; BLE.name=dev.name||'MIDI'; BLE.manual=false;
+  const srv = await dev.gatt.connect();
+  const svc = await srv.getPrimaryService(BLE_SVC);
+  const chr = await svc.getCharacteristic(BLE_CHR);
+  chr.addEventListener('characteristicvaluechanged', e=>{ const v=e.target.value; bleParse(new Uint8Array(v.buffer, v.byteOffset, v.byteLength)); });
+  await chr.startNotifications();
+  BLE.chr=chr; BLE.chain=Promise.resolve(); BLE.sx=null; BLE.run=0; BLE.tries=0;
+  addBleOption(); $('#outSel').value='ble'; $('#inSel').value='ble'; selectPorts();
+  $('#btnBle').classList.add('on'); $('#btnBle').textContent='BT: '+BLE.name;
+  toast('Bluetooth conectado: '+BLE.name); markTest('ble','ok');
+}
+function onBleDisc(){
+  BLE.chr=null; BLE.sx=null;
+  $('#btnBle').classList.remove('on'); $('#btnBle').textContent = BLE.manual ? 'Bluetooth' : 'BT: reconectar';
+  if (APP.out===bleOut) APP.out=null; if (APP.inp===bleIn) APP.inp=null;
+  setStatus(false, BLE.manual ? 'Bluetooth desconectado' : 'Bluetooth caiu');
+  if (!BLE.manual && BLE.tries<3){ BLE.tries++; setTimeout(()=>bleOpen(BLE.dev).catch(()=>{ toast('Não reconectou. Toque em "BT: reconectar".'); }), 1200*BLE.tries); }
+}
+function addBleOption(){
+  ['#outSel','#inSel'].forEach(s=>{ const sel=$(s); let o=sel.querySelector('option[value="ble"]'); if (!o){ o=h('option',{value:'ble'}); sel.append(o); } o.textContent='Bluetooth: '+BLE.name; });
+}
+
+/* ================= CONEXÃO ================= */
+async function initMidi(){
+  if (!navigator.requestMIDIAccess){
+    setStatus(false,'Sem Web MIDI' + (navigator.bluetooth?' (use Bluetooth)':''));
+    let framed=false; try { framed = window.top !== window.self; } catch(e){ framed = true; }
+    if (framed){ document.querySelector('main').insertAdjacentHTML('afterbegin', `<div class="warnbox"><b>O app está aberto dentro de outra página (ex.: o link do Claude).</b> Nesse modo o navegador não libera MIDI. Abra o arquivo <b>e480b-control.html</b> direto, por um endereço próprio, no seu navegador Web MIDI.</div>`); return; }
+    document.querySelector('main').insertAdjacentHTML('afterbegin', `<div class="warnbox"><b>Este navegador não tem Web MIDI.</b> ${navigator.bluetooth ? 'Você ainda pode conectar um adaptador MIDI Bluetooth (M-VAVE) pelo botão "Bluetooth".' : 'No iPad o Safari não suporta MIDI. Abra este arquivo num navegador com Web MIDI (por exemplo um app "Web MIDI Browser" da App Store) ou no Chrome/Edge do Windows.'} O app abre assim mesmo, e tudo o que seria enviado aparece no Monitor.</div>`);
+    return;
+  }
+  try {
+    APP.access = await navigator.requestMIDIAccess({sysex:true});
+  } catch(e){
+    try { APP.access = await navigator.requestMIDIAccess(); toast('MIDI sem SysEx: efeitos/escalas/leitura não vão funcionar'); }
+    catch(e2){ setStatus(false,'MIDI negado'); return; }
+  }
+  APP.access.onstatechange = fillPorts; fillPorts();
+}
+function fillPorts(){
+  const outs=[...APP.access.outputs.values()], ins=[...APP.access.inputs.values()];
+  const so=$('#outSel'), si=$('#inSel');
+  const prevO = so.value || LS.get('e480b_out',''), prevI = si.value || LS.get('e480b_in','');
+  so.innerHTML='<option value="">—</option>'+outs.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join('');
+  si.innerHTML='<option value="">—</option>'+ins.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join('');
+  if (BLE.chr) addBleOption();
+  const pick=(list,prev)=> list.find(p=>p.id===prev) || (list.length===1?list[0]:null);
+  if (prevO==='ble' && BLE.chr) so.value='ble'; else { const po=pick(outs,prevO); if (po) so.value=po.id; }
+  if (prevI==='ble' && BLE.chr) si.value='ble'; else { const pi=pick(ins,prevI); if (pi) si.value=pi.id; }
+  selectPorts();
+}
+function selectPorts(){
+  const so=$('#outSel').value, si=$('#inSel').value;
+  APP.out = so==='ble' ? (BLE.chr?bleOut:null) : (so && APP.access ? APP.access.outputs.get(so) : null);
+  if (APP.inp && APP.inp!==bleIn) APP.inp.onmidimessage=null;
+  APP.inp = si==='ble' ? (BLE.chr?bleIn:null) : (si && APP.access ? APP.access.inputs.get(si) : null);
+  if (APP.inp && APP.inp!==bleIn) APP.inp.onmidimessage=onMidi;
+  LS.set('e480b_out',so); LS.set('e480b_in',si);
+  setStatus(!!APP.out, APP.out ? (APP.out.name + (APP.inp?' ⇄ '+APP.inp.name:' (sem entrada)')) : 'Escolha a saída MIDI');
+}
+function setStatus(ok,txt){ $('#dot').classList.toggle('ok',ok); $('#status').textContent=txt; }
+
+/* ================= UTILITÁRIOS DE UI ================= */
+function $(s,r=document){ return r.querySelector(s); }
+function $$(s,r=document){ return [...r.querySelectorAll(s)]; }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function h(tag, attrs={}, ...kids){ const e=document.createElement(tag); for (const k in attrs){ if (k==='on') for (const ev in attrs.on) e.addEventListener(ev, attrs.on[ev]); else if (k==='class') e.className=attrs[k]; else if (k in e && k!=='list') e[k]=attrs[k]; else e.setAttribute(k,attrs[k]); } kids.flat().forEach(k=>e.append(k)); return e; }
+let toastT=null; function toast(t){ const e=$('#toast'); e.textContent=t; e.style.opacity=1; clearTimeout(toastT); toastT=setTimeout(()=>e.style.opacity=0,2200); }
+// slider: {label,min,max,value,fmt,onChange,key}
+function slider(o){
+  const out = h('output',{}, o.fmt? o.fmt(o.value) : String(o.value));
+  const inp = h('input',{type:'range',min:o.min,max:o.max,step:o.step||1,value:o.value});
+  inp.addEventListener('input',()=>{ const v=+inp.value; out.textContent = o.fmt? o.fmt(v):String(v); throttle(o.key||inp, ()=>o.onChange(v)); });
+  inp.addEventListener('dblclick',()=>{ if (o.def!==undefined){ inp.value=o.def; inp.dispatchEvent(new Event('input')); }});
+  const wrap = h('div',{class:'sl'}, h('label',{title:o.label}, o.label), inp, out);
+  wrap.setValue = v => { inp.value=v; out.textContent = o.fmt? o.fmt(v):String(v); };
+  return wrap;
+}
+const fmtPan = v => v===64?'C': v<64?'L'+(64-v):'R'+(v-64);
+const fmtC = v => (v>64?'+':'')+(v-64);
+const fmtMod = v => { const x=Math.round((v-64)); return (x>0?'+':'')+x; };
+function testNote(ch, n=60, ms=450){ M.noteOn(ch,n,+$('#vel').value||100); setTimeout(()=>M.noteOff(ch,n), ms); }
+function setCur(ch){ APP.cur=ch; $$('.curch').forEach(e=>e.textContent=ch); $('#curSel').value=ch; $$('.strip').forEach(s=>s.classList.toggle('cur', +s.dataset.ch===ch)); renderEditor(); }
+
+/* ================= NAVEGAÇÃO ================= */
+const TABS=[['mixer','Mixer'],['tones','Timbres'],['play','Tocar'],['edit','Som'],['fx','Efeitos'],['drum','Bateria'],['scale','Escalas'],['mon','Monitor'],['tests','Testes']];
+function buildNav(){
+  const nav=$('#nav');
+  TABS.forEach(([id,lbl])=>nav.append(h('button',{'data-t':id,on:{click:()=>showTab(id)}},lbl)));
+  const sel=h('select',{id:'curSel',on:{change:e=>setCur(+e.target.value)}}, ...Array.from({length:16},(_,i)=>h('option',{value:i+1},'Canal '+(i+1))));
+  nav.append(h('span',{class:'chsel'},'Canal atual', sel));
+}
+function showTab(id){ $$('section').forEach(s=>s.classList.toggle('show', s.id==='sec-'+id)); $$('#nav button[data-t]').forEach(b=>b.classList.toggle('sel', b.dataset.t===id)); LS.set('e480b_tab',id); if (id==='tones') renderToneList(); }
+
+/* ================= MIXER ================= */
+function effVol(ch){ const anySolo = Object.values(ST.parts).some(p=>p.solo); const p=ST.parts[ch]; if (anySolo) return p.solo? p.vol:0; return p.mute?0:p.vol; }
+function sendVols(){ for (let c=1;c<=16;c++) M.cc(c,7,effVol(c),`Volume ch${c}=${effVol(c)}`); }
+const stripEls={};
+function buildMixer(){
+  const box=$('#strips'); box.innerHTML='';
+  for (let ch=1; ch<=16; ch++){
+    const p=ST.parts[ch];
+    const toneBtn = h('button',{class:'tone',on:{click:()=>openToneModal(ch)}}, p.name);
+    const mute = h('button',{class:'small'+(p.mute?' on':''),on:{click:()=>{p.mute=!p.mute; mute.classList.toggle('on',p.mute); sendVols(); refreshStrips(); save();}}},'M');
+    const solo = h('button',{class:'small'+(p.solo?' on':''),on:{click:()=>{p.solo=!p.solo; solo.classList.toggle('on',p.solo); sendVols(); refreshStrips(); save();}}},'S');
+    const play = h('button',{class:'small',on:{click:()=>{ setCur(ch); testNote(ch, ch===10?38:60); }}},'▶');
+    const top = h('div',{class:'top'}, h('span',{class:'chn',on:{click:()=>setCur(ch)}}, 'Ch '+ch, ch===10?h('span',{class:'tag p',style:'margin-left:6px'},'bateria'):''), h('span',{class:'row',style:'gap:4px'}, mute, solo, play));
+    const sl = [
+      slider({label:'Volume',min:0,max:127,value:p.vol,def:100,key:'v'+ch,onChange:v=>{p.vol=v; M.cc(ch,7,effVol(ch),`Volume ch${ch}=${v}`); save();}}),
+      slider({label:'Pan',min:0,max:127,value:p.pan,def:64,fmt:fmtPan,key:'p'+ch,onChange:v=>{p.pan=v; M.cc(ch,10,v); save();}}),
+      slider({label:'Expression',min:0,max:127,value:p.exp,def:127,key:'e'+ch,onChange:v=>{p.exp=v; M.cc(ch,11,v); save();}}),
+      slider({label:'Reverb',min:0,max:127,value:p.rev,def:40,key:'r'+ch,onChange:v=>{p.rev=v; M.cc(ch,91,v); save();}}),
+      slider({label:'Chorus',min:0,max:127,value:p.cho,def:0,key:'c'+ch,onChange:v=>{p.cho=v; M.cc(ch,93,v); save();}})];
+    const card = h('div',{class:'card strip'+(ch===APP.cur?' cur':''),'data-ch':ch}, top, toneBtn, ...sl);
+    stripEls[ch]={card,toneBtn,mute,solo,sl};
+    box.append(card);
+  }
+  refreshStrips();
+}
+function refreshStrips(){ for (let c=1;c<=16;c++){ const e=stripEls[c]; if (!e) continue; e.card.classList.toggle('muted', effVol(c)===0); e.toneBtn.textContent = ST.parts[c].name; e.mute.classList.toggle('on',ST.parts[c].mute); e.solo.classList.toggle('on',ST.parts[c].solo);} }
+
+function applyTone(ch, t, preview){
+  const p=ST.parts[ch]; p.msb=t.msb; p.lsb=t.lsb; p.pc=t.pc; p.name=t.name; p.toneSet=true;
+  M.tone(ch,t.msb,t.lsb,t.pc,t.name); save(); refreshStrips(); renderLayers();
+  if (preview) setTimeout(()=>testNote(ch,60,600),60);
+}
+
+/* ================= TIMBRES ================= */
+let famFilter=null, toneIdx=-1;
+function filteredTones(q){
+  q=(q||'').toLowerCase().trim();
+  return TONES.filter(t=>(!$('#tPanel').checked||t.star) && (!famFilter||famOf(t.pc)===famFilter) &&
+    (!q || t.name.toLowerCase().includes(q) || String(t.no).includes(q) || famOf(t.pc).toLowerCase().includes(q)));
+}
+function toneRow(t, onPick){
+  return h('div',{class:'titem',on:{click:onPick}}, h('span',{class:'n'}, String(t.no).padStart(3,'0')),
+    h('span',{}, t.name, ' ', t.star?h('span',{class:'tag p'},'painel'):''),
+    h('span',{class:'tag'}, famOf(t.pc)),
+    h('span',{class:'note',style:'font-variant-numeric:tabular-nums'}, `${t.msb}·${t.lsb}·${t.pc}`));
+}
+function renderToneList(){
+  const list=$('#tList'); list.innerHTML='';
+  const arr=filteredTones($('#tSearch').value);
+  arr.forEach((t,i)=>{ const r=toneRow(t,()=>{ toneIdx=TONES.indexOf(t); $$('.titem',list).forEach(x=>x.classList.remove('sel')); r.classList.add('sel'); applyTone(APP.cur,t,$('#tPreview').checked); }); if (TONES.indexOf(t)===toneIdx) r.classList.add('sel'); list.append(r); });
+  if (!arr.length) list.append(h('div',{class:'note',style:'padding:12px'},'Nada encontrado.'));
+}
+function stepTone(d){
+  const arr=filteredTones($('#tSearch').value); if (!arr.length) return;
+  let i = arr.findIndex(t=>TONES.indexOf(t)===toneIdx); i = (i+d+arr.length)%arr.length;
+  toneIdx=TONES.indexOf(arr[i]); applyTone(APP.cur,arr[i],$('#tPreview').checked); renderToneList();
+  const sel=$('#tList .sel'); if (sel) sel.scrollIntoView({block:'nearest'});
+  toast(`Ch ${APP.cur}: ${arr[i].name}`);
+}
+function buildTones(){
+  const chips=$('#famChips');
+  const all=h('button',{class:'on',on:{click:()=>{famFilter=null; $$('#famChips button').forEach(b=>b.classList.remove('on')); all.classList.add('on'); renderToneList();}}},'Todos');
+  chips.append(all);
+  FAMS.forEach(f=>{ const b=h('button',{on:{click:()=>{famFilter=f; $$('#famChips button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); renderToneList();}}},f); chips.append(b); });
+  $('#tSearch').addEventListener('input',renderToneList); $('#tPanel').addEventListener('change',renderToneList);
+  $('#tPrev').onclick=()=>stepTone(-1); $('#tNext').onclick=()=>stepTone(1);
+}
+let modalCh=1;
+function openToneModal(ch){
+  modalCh=ch; setCur(ch); $('#tmCh').textContent=ch; $('#tmSearch').value=''; renderModal(); $('#toneModal').classList.add('show'); setTimeout(()=>$('#tmSearch').focus(),50);
+}
+function renderModal(){
+  const list=$('#tmList'); list.innerHTML='';
+  const q=$('#tmSearch').value.toLowerCase();
+  if (modalCh===10 || ST.parts[modalCh].rhythm){
+    list.append(h('div',{class:'note',style:'padding:8px 12px'},'Kits de bateria'));
+    DRUM_SETS.forEach(d=>{ if (q && !d.name.toLowerCase().includes(q)) return;
+      list.append(h('div',{class:'titem',on:{click:()=>{ selectDrumSet(modalCh,d); $('#toneModal').classList.remove('show'); }}}, h('span',{class:'n'},'kit'), h('span',{},d.name), h('span',{class:'tag'},'bateria'), h('span',{class:'note'},`0·${d.lsb}·${d.pc}`)));});
+    list.append(h('div',{class:'note',style:'padding:8px 12px'},'Timbres melódicos (só tocam se a parte não for de bateria)'));
+  }
+  TONES.filter(t=>!q||t.name.toLowerCase().includes(q)||famOf(t.pc).toLowerCase().includes(q)).forEach(t=>list.append(toneRow(t,()=>{ applyTone(modalCh,t,true); $('#toneModal').classList.remove('show'); })));
+}
+function selectDrumSet(ch,d){ const p=ST.parts[ch]; p.msb=0; p.lsb=d.lsb; p.pc=d.pc; p.name='Kit '+d.name; p.toneSet=true; M.tone(ch,0,d.lsb,d.pc); save(); refreshStrips(); setTimeout(()=>testNote(ch,36,300),60); }
+
+/* ================= TOCAR ================= */
+const kbdDown=new Map();
+function buildKeyboard(){
+  const k=$('#kbd'); k.innerHTML='';
+  const base = APP.oct*12; const nW=15; const wW=100/nW; let wi=0;
+  $('#octLbl').textContent = noteName(base) + '–' + noteName(base+24);
+  for (let n=base; n<=base+24; n++){
+    const black=[1,3,6,8,10].includes(n%12);
+    const el=h('div',{class:black?'b':'w','data-n':n});
+    if (!black){ el.style.left=(wi*wW)+'%'; el.style.width=wW+'%'; if (n%12===0) el.append(h('span',{class:'lbl'},noteName(n))); wi++; }
+    else { el.style.left=((wi-0.32)*wW)+'%'; el.style.width=(wW*0.64)+'%'; }
+    k.append(el);
+  }
+}
+function kbdPress(n,down,pid){
+  const el=$(`#kbd [data-n="${n}"]`);
+  if (down){ M.noteOn(APP.cur,n,+$('#vel').value); kbdDown.set(pid,n); el&&el.classList.add('down'); }
+  else { M.noteOff(APP.cur,n); el&&el.classList.remove('down'); }
+}
+function bindKeyboard(){
+  const k=$('#kbd');
+  k.addEventListener('pointerdown',e=>{ const n=+e.target.closest('[data-n]')?.dataset.n; if (!isNaN(n)){ e.preventDefault(); kbdPress(n,true,e.pointerId);} });
+  const up=e=>{ const n=kbdDown.get(e.pointerId); if (n!==undefined){ kbdDown.delete(e.pointerId); kbdPress(n,false); } };
+  k.addEventListener('pointerup',up); k.addEventListener('pointercancel',up); k.addEventListener('pointerleave',up);
+  $('#octDn').onclick=()=>{ APP.oct=Math.max(1,APP.oct-1); buildKeyboard(); };
+  $('#octUp').onclick=()=>{ APP.oct=Math.min(8,APP.oct+1); buildKeyboard(); };
+  $('#sus').onclick=()=>{ APP.sus=!APP.sus; $('#sus').classList.toggle('on',APP.sus); M.cc(APP.cur,64,APP.sus?127:0); };
+  // teclado do computador (fileira A S D F…)
+  const map='awsedftgyhujkolp;';
+  window.addEventListener('keydown',e=>{ if (e.repeat||/input|textarea|select/i.test(e.target.tagName)) return; const i=map.indexOf(e.key); if (i>=0) kbdPress(APP.oct*12+i,true,'k'+e.key); });
+  window.addEventListener('keyup',e=>{ const i=map.indexOf(e.key); if (i>=0 && !/input|textarea|select/i.test(e.target.tagName)) kbdPress(APP.oct*12+i,false); });
+}
+function chOptions(sel){ return Array.from({length:16},(_,i)=>h('option',{value:i+1,selected:i+1===sel},String(i+1))); }
+function noteOptions(sel){ return Array.from({length:128},(_,i)=>h('option',{value:i,selected:i===sel},`${noteName(i)} (${i})`)); }
+function renderLayers(){
+  const tb=$('#layers'); tb.innerHTML='';
+  ST.layers.forEach((L,i)=>{
+    const on=h('input',{type:'checkbox',checked:L.on,on:{change:e=>{L.on=e.target.checked; save();}}});
+    const ch=h('select',{on:{change:e=>{L.ch=+e.target.value; save(); renderLayers();}}},...chOptions(L.ch));
+    const lo=h('select',{on:{change:e=>{L.lo=+e.target.value; save();}}},...noteOptions(L.lo));
+    const hi=h('select',{on:{change:e=>{L.hi=+e.target.value; save();}}},...noteOptions(L.hi));
+    const tr=h('input',{type:'number',min:-36,max:36,value:L.tr,style:'width:70px',on:{change:e=>{L.tr=clamp(+e.target.value,-36,36); save();}}});
+    const tn=h('button',{class:'small',on:{click:()=>openToneModal(L.ch)}}, ST.parts[L.ch].name);
+    tb.append(h('tr',{},h('td',{},on),h('td',{},ch),h('td',{},lo),h('td',{},hi),h('td',{},tr),h('td',{},tn)));
+  });
+  const src=$('#thruSrc'); src.innerHTML=''; chOptions(ST.thruSrc).forEach(o=>src.append(o));
+  src.onchange=e=>{ST.thruSrc=+e.target.value; save();};
+  $('#thruAll').checked=ST.thruAll; $('#thruAll').onchange=e=>{ST.thruAll=e.target.checked; save();};
+}
+
+/* ================= EDITOR DE SOM ================= */
+function renderEditor(){
+  const ch=APP.cur, p=ST.parts[ch];
+  const eb=$('#editCh'); eb.innerHTML='';
+  for (let c=1;c<=16;c++) eb.append(h('button',{class:c===ch?'on':'',on:{click:()=>setCur(c)}},String(c)));
+  const mod=$('#edMod'); mod.innerHTML='';
+  NRPN_MOD.forEach(([ms,ls,lbl],i)=> mod.append(slider({label:lbl,min:14,max:114,value:p.mod[i],def:64,fmt:fmtMod,key:'nr'+ch+i,onChange:v=>{p.mod[i]=v; M.nrpn(ch,ms,ls,v,`NRPN ${lbl}=${v-64} ch${ch}`); save();}})));
+  mod.append(h('p',{class:'note'},'−50 a +50 em relação ao timbre. Duplo clique volta ao centro. Trocar de timbre não zera esses valores.'));
+  const tu=$('#edTune'); tu.innerHTML='';
+  tu.append(
+    slider({label:'Bend range',min:0,max:24,value:p.bend,def:2,fmt:v=>v+' st',key:'br'+ch,onChange:v=>{p.bend=v; M.rpn(ch,0,0,v,0,`RPN Bend range=${v} ch${ch}`); save();}}),
+    slider({label:'Afinação grossa',min:-24,max:24,value:p.coarse,def:0,fmt:v=>(v>0?'+':'')+v+' st',key:'co'+ch,onChange:v=>{p.coarse=v; M.rpn(ch,0,2,64+v,0,`RPN Coarse=${v} ch${ch}`); save();}}),
+    slider({label:'Afinação fina',min:-100,max:100,value:p.fine,def:0,fmt:v=>(v>0?'+':'')+v+' ¢',key:'fi'+ch,onChange:v=>{p.fine=v; const x=clamp(8192+Math.round(v*8192/100),0,16383); M.rpn(ch,0,1,x>>7,x&127,`RPN Fine=${v}c ch${ch}`); save();}}),
+    slider({label:'Key shift',min:-24,max:24,value:p.keyShift,def:0,fmt:v=>(v>0?'+':'')+v+' st',key:'ks'+ch,onChange:v=>{p.keyShift=v; dt1(PA(ch,0x16),[0x40+v],`Key shift ch${ch}=${v}`); save();}}),
+    slider({label:'Porta time',min:0,max:127,value:p.portaTime,def:0,key:'pt'+ch,onChange:v=>{p.portaTime=v; M.cc(ch,5,v); save();}}),
+    h('div',{class:'row',style:'margin-top:8px'},
+      h('button',{class:p.porta?'on':'',on:{click:e=>{p.porta=!p.porta; e.target.classList.toggle('on',p.porta); M.cc(ch,65,p.porta?127:0,`Portamento ${p.porta?'ON':'OFF'} ch${ch}`); save();}}},'Portamento'),
+      h('button',{class:p.poly?'':'on',on:{click:e=>{p.poly=!p.poly; e.target.classList.toggle('on',!p.poly); dt1(PA(ch,0x13),[p.poly?1:0],`Mono/Poly ch${ch}=${p.poly?'Poly':'Mono'}`); save();}}},'Mono')));
+  const pa=$('#edPart'); pa.innerHTML='';
+  pa.append(
+    slider({label:'Nota mínima',min:0,max:127,value:p.lo,def:0,fmt:noteName,key:'lo'+ch,onChange:v=>{p.lo=v; dt1(PA(ch,0x1D),[v],`Key range low ch${ch}=${noteName(v)}`); save();}}),
+    slider({label:'Nota máxima',min:0,max:127,value:p.hi,def:127,fmt:noteName,key:'hi'+ch,onChange:v=>{p.hi=v; dt1(PA(ch,0x1E),[v],`Key range high ch${ch}=${noteName(v)}`); save();}}),
+    slider({label:'Vel. sens. depth',min:0,max:127,value:p.vsDepth,def:64,key:'vd'+ch,onChange:v=>{p.vsDepth=v; dt1(PA(ch,0x1A),[v],`Velocity depth ch${ch}=${v}`); save();}}),
+    slider({label:'Vel. sens. offset',min:0,max:127,value:p.vsOff,def:64,key:'vo'+ch,onChange:v=>{p.vsOff=v; dt1(PA(ch,0x1B),[v],`Velocity offset ch${ch}=${v}`); save();}}),
+    h('div',{class:'row',style:'margin-top:8px'},
+      h('button',{class:p.rx?'':'on',on:{click:e=>{p.rx=!p.rx; e.target.classList.toggle('on',!p.rx); dt1(PA(ch,0x02),[p.rx?ch-1:0x10],`Rx channel ch${ch}=${p.rx?'ON':'OFF'}`); save();}}},'Parte surda (Rx OFF)'),
+      h('select',{on:{change:e=>{p.rhythm=+e.target.value; dt1(PA(ch,0x15),[p.rhythm],`Use for rhythm ch${ch}=${p.rhythm}`); save();}}},
+        h('option',{value:0,selected:p.rhythm===0},'Parte normal'),h('option',{value:1,selected:p.rhythm===1},'Bateria (Map 1)'),h('option',{value:2,selected:p.rhythm===2},'Bateria (Map 2)'))),
+    h('p',{class:'note'},'Nota mín./máx. criam splits: ex. canal 2 só abaixo de C4, canal 3 só acima. "Rx OFF" faz a parte ignorar o MIDI (bom para descobrir quem o painel usa).'));
+  const ct=$('#edCtl'); ct.innerHTML='';
+  ct.append(
+    slider({label:'Mod → vibrato',min:0,max:127,value:p.modDepth,def:10,fmt:v=>Math.round(v*600/127)+'¢',key:'md'+ch,onChange:v=>{p.modDepth=v; dt1(PA2(ch,0x04),[v],`Mod LFO1 pitch depth ch${ch}=${v}`); save();}}),
+    slider({label:'Mod → filtro',min:0,max:127,value:p.modTvf,def:64,fmt:fmtC,key:'mt'+ch,onChange:v=>{p.modTvf=v; dt1(PA2(ch,0x01),[v],`Mod TVF cutoff ch${ch}=${v-64}`); save();}}),
+    slider({label:'Mod → volume',min:0,max:127,value:p.modAmp,def:64,fmt:fmtC,key:'ma'+ch,onChange:v=>{p.modAmp=v; dt1(PA2(ch,0x02),[v],`Mod amplitude ch${ch}=${v-64}`); save();}}),
+    h('p',{class:'note'},'Define o que a alavanca de modulação (CC1) faz nesta parte.'),
+    h('div',{class:'row'},'Testar: ',
+      h('button',{class:'small',on:{click:()=>{M.cc(ch,1,127); testNote(ch,60,1500); setTimeout(()=>M.cc(ch,1,0),1500);}}},'Nota com modulação'),
+      h('button',{class:'small',on:{click:()=>{M.noteOn(ch,60,100); let i=0; const t=setInterval(()=>{ i++; const v=Math.round(8192+8191*Math.sin(i/6)); M.bend(ch,clamp(v,0,16383)); if(i>40){clearInterval(t); M.bend(ch,8192); M.noteOff(ch,60);} },30);}}},'Nota com bend')));
+}
+function resetEditor(){
+  const ch=APP.cur, p=ST.parts[ch], d=defPart(ch);
+  NRPN_MOD.forEach(([ms,ls],i)=>{ p.mod[i]=64; M.nrpn(ch,ms,ls,64); });
+  Object.assign(p,{bend:2,coarse:0,fine:0,keyShift:0,lo:0,hi:127,vsDepth:64,vsOff:64,modDepth:d.modDepth,modTvf:64,modAmp:64});
+  M.rpn(ch,0,0,2,0); M.rpn(ch,0,2,64,0); M.rpn(ch,0,1,64,0);
+  dt1(PA(ch,0x16),[0x40]); dt1(PA(ch,0x1D),[0]); dt1(PA(ch,0x1E),[127]); dt1(PA(ch,0x1A),[64]); dt1(PA(ch,0x1B),[64]);
+  dt1(PA2(ch,0x04),[10]); dt1(PA2(ch,0x01),[64]); dt1(PA2(ch,0x02),[64]);
+  save(); renderEditor(); toast('Edições do canal '+ch+' zeradas');
+}
+
+/* ================= EFEITOS ================= */
+function buildFx(){
+  const R=ST.rev, C=ST.cho, E=ST.efx;
+  const rv=$('#fxRev'); rv.innerHTML='';
+  const rsel=h('select',{on:{change:e=>{R.macro=+e.target.value; dt1([0x40,0x01,0x30],[R.macro],`Reverb macro: ${REV_MACROS[R.macro]}`); save();}}},...REV_MACROS.map((n,i)=>h('option',{value:i,selected:i===R.macro},n)));
+  rv.append(h('div',{class:'row',style:'margin-bottom:6px'},'Tipo ',rsel),
+    slider({label:'Character',min:0,max:7,value:R.char,def:4,key:'rc',onChange:v=>{R.char=v; dt1([0x40,1,0x31],[v],'Reverb character='+v); save();}}),
+    slider({label:'Pre-LPF',min:0,max:7,value:R.prelpf,def:0,key:'rp',onChange:v=>{R.prelpf=v; dt1([0x40,1,0x32],[v],'Reverb pre-LPF='+v); save();}}),
+    slider({label:'Nível',min:0,max:127,value:R.level,def:64,key:'rl',onChange:v=>{R.level=v; dt1([0x40,1,0x33],[v],'Reverb level='+v); save();}}),
+    slider({label:'Tempo',min:0,max:127,value:R.time,def:64,key:'rt',onChange:v=>{R.time=v; dt1([0x40,1,0x34],[v],'Reverb time='+v); save();}}),
+    slider({label:'Delay feedback',min:0,max:127,value:R.fb,def:0,key:'rf',onChange:v=>{R.fb=v; dt1([0x40,1,0x35],[v],'Reverb delay fb='+v); save();}}),
+    h('p',{class:'note'},'Ao trocar o tipo, o teclado ajusta sozinho os outros parâmetros; os sliders não acompanham.'));
+  const cv=$('#fxCho'); cv.innerHTML='';
+  const csel=h('select',{on:{change:e=>{C.macro=+e.target.value; dt1([0x40,0x01,0x38],[C.macro],`Chorus macro: ${CHO_MACROS[C.macro]}`); save();}}},...CHO_MACROS.map((n,i)=>h('option',{value:i,selected:i===C.macro},n)));
+  cv.append(h('div',{class:'row',style:'margin-bottom:6px'},'Tipo ',csel),
+    slider({label:'Pre-LPF',min:0,max:7,value:C.prelpf,def:0,key:'cp',onChange:v=>{C.prelpf=v; dt1([0x40,1,0x39],[v],'Chorus pre-LPF='+v); save();}}),
+    slider({label:'Nível',min:0,max:127,value:C.level,def:64,key:'cl',onChange:v=>{C.level=v; dt1([0x40,1,0x3A],[v],'Chorus level='+v); save();}}),
+    slider({label:'Feedback',min:0,max:127,value:C.fb,def:8,key:'cf',onChange:v=>{C.fb=v; dt1([0x40,1,0x3B],[v],'Chorus feedback='+v); save();}}),
+    slider({label:'Delay',min:0,max:127,value:C.delay,def:80,key:'cd',onChange:v=>{C.delay=v; dt1([0x40,1,0x3C],[v],'Chorus delay='+v); save();}}),
+    slider({label:'Rate',min:0,max:127,value:C.rate,def:3,key:'cr',onChange:v=>{C.rate=v; dt1([0x40,1,0x3D],[v],'Chorus rate='+v); save();}}),
+    slider({label:'Depth',min:0,max:127,value:C.depth,def:19,key:'cdp',onChange:v=>{C.depth=v; dt1([0x40,1,0x3E],[v],'Chorus depth='+v); save();}}),
+    slider({label:'Envio p/ reverb',min:0,max:127,value:C.toRev,def:0,key:'cs',onChange:v=>{C.toRev=v; dt1([0x40,1,0x3F],[v],'Chorus→Reverb='+v); save();}}));
+  // EFX
+  const ts=$('#efxType'); ts.innerHTML='';
+  EFX_TYPES.forEach(([m,l,n],i)=>ts.append(h('option',{value:i,selected:i===E.type},`${n}  (${hex([m,l])})`)));
+  ts.onchange=e=>{E.type=+e.target.value; save();};
+  $('#efxSend').onclick=()=>{ const [m,l,n]=EFX_TYPES[E.type]; dt1([0x40,0x03,0x00],[m,l],'EFX type: '+n); refreshEfxParts(true); };
+  const ep=$('#efxParts'); ep.innerHTML='';
+  for (let c=1;c<=16;c++){ ep.append(h('button',{class:ST.parts[c].efx?'on':'','data-c':c,on:{click:e=>{ const p=ST.parts[c]; p.efx=!p.efx; e.target.classList.toggle('on',p.efx); sendPartEfx(c); save(); }}},String(c))); }
+  const ec=$('#efxCtl'); ec.innerHTML='';
+  ec.append(
+    slider({label:'Depth (wet)',min:0,max:127,value:E.depth,def:127,key:'ed',onChange:v=>{E.depth=v; dt1([0x40,3,0x1A],[v],'EFX depth='+v); save();}}),
+    slider({label:'Envio reverb',min:0,max:127,value:E.toRev,def:0,key:'er',onChange:v=>{E.toRev=v; dt1([0x40,3,0x17],[v],'EFX→Reverb='+v); save();}}),
+    slider({label:'Envio chorus',min:0,max:127,value:E.toCho,def:0,key:'ec',onChange:v=>{E.toCho=v; dt1([0x40,3,0x18],[v],'EFX→Chorus='+v); save();}}));
+  const pp=$('#efxParams'); pp.innerHTML='';
+  E.params.forEach((val,i)=>pp.append(slider({label:'Parâm. '+(i+1),min:0,max:127,value:val,def:64,key:'ep'+i,onChange:v=>{E.params[i]=v; dt1([0x40,3,0x03+i],[v],`EFX param ${i+1}=${v}`); save();}})));
+}
+function sendPartEfx(c){ const p=ST.parts[c]; const [m,l]=EFX_TYPES[ST.efx.type]; dt1(PA4(c,0x23), p.efx?[m,l]:[0,0], `Part EFX ch${c} ${p.efx?'ligado':'desligado'}`); }
+function refreshEfxParts(send){ for (let c=1;c<=16;c++) if (ST.parts[c].efx && send) sendPartEfx(c); }
+
+/* ================= BATERIA ================= */
+function buildDrums(){
+  const dc=$('#drCh'); dc.innerHTML=''; chOptions(APP.drCh).forEach(o=>dc.append(o)); dc.onchange=e=>{APP.drCh=+e.target.value; renderDrumCtl();};
+  const ds=$('#drSet'); ds.innerHTML=''; DRUM_SETS.forEach((d,i)=>ds.append(h('option',{value:i},d.name)));
+  $('#drSetSend').onclick=()=>selectDrumSet(APP.drCh, DRUM_SETS[+ds.value]);
+  $('#drMake').onclick=()=>{ const ch=APP.drCh; if (ch===10){ toast('O canal 10 já é bateria'); return; } ST.parts[ch].rhythm=2; dt1(PA(ch,0x15),[2],`Use for rhythm ch${ch}=Map2`); save(); toast(`Canal ${ch} virou bateria (Map 2). Escolha um kit.`); };
+  const pads=$('#pads'); pads.innerHTML='';
+  for (let n=35;n<=87;n++){
+    const b=h('button',{class:'pad'+(n===APP.drNote?' sel':''),'data-n':n,on:{pointerdown:e=>{ e.preventDefault(); APP.drNote=n; $$('.pad').forEach(x=>x.classList.toggle('sel',+x.dataset.n===n)); M.noteOn(APP.drCh,n,+$('#vel').value||100); setTimeout(()=>M.noteOff(APP.drCh,n),200); renderDrumCtl(); }}},
+      h('span',{},DRUM_NAMES[n]||''), h('span',{class:'k'},`${noteName(n)} · ${n}`));
+    pads.append(b);
+  }
+  $('#drReset').onclick=()=>{ const d=drumState(); Object.assign(d,{pitch:64,level:null,pan:null,rev:null,cho:null}); const n=APP.drNote, ch=APP.drCh; M.nrpn(ch,0x18,n,64); save(); renderDrumCtl(); toast('Afinação da nota zerada (nível/pan/efeitos voltam ao trocar de kit)'); };
+  renderDrumCtl();
+}
+function drumState(){ const p=ST.parts[APP.drCh]; return (p.drums[APP.drNote] = p.drums[APP.drNote] || {pitch:64,level:null,pan:null,rev:null,cho:null}); }
+function renderDrumCtl(){
+  const n=APP.drNote, ch=APP.drCh, d=drumState();
+  $('#drNoteLbl').textContent = `${n} · ${DRUM_NAMES[n]||noteName(n)} (canal ${ch})`;
+  const c=$('#drCtl'); c.innerHTML='';
+  c.append(
+    slider({label:'Afinação',min:1,max:127,value:d.pitch,def:64,fmt:fmtC,key:'dp',onChange:v=>{d.pitch=v; M.nrpn(ch,0x18,n,v,`Drum ${n} pitch=${v-64}`); save();}}),
+    slider({label:'Nível',min:0,max:127,value:d.level??100,key:'dl',onChange:v=>{d.level=v; M.nrpn(ch,0x1A,n,v,`Drum ${n} level=${v}`); save();}}),
+    slider({label:'Pan',min:0,max:127,value:d.pan??64,def:64,fmt:v=>v===0?'Aleat.':fmtPan(v),key:'dpn',onChange:v=>{d.pan=v; M.nrpn(ch,0x1C,n,v,`Drum ${n} pan=${v}`); save();}}),
+    slider({label:'Reverb',min:0,max:127,value:d.rev??127,key:'drv',onChange:v=>{d.rev=v; M.nrpn(ch,0x1D,n,v,`Drum ${n} reverb=${v}`); save();}}),
+    slider({label:'Chorus',min:0,max:127,value:d.cho??127,key:'dch',onChange:v=>{d.cho=v; M.nrpn(ch,0x1E,n,v,`Drum ${n} chorus=${v}`); save();}}));
+}
+
+/* ================= ESCALAS ================= */
+let scVals=[0,0,0,0,0,0,0,0,0,0,0,0]; const scSel=new Set([1]); const scSliders=[];
+function buildScales(){
+  const cb=$('#scCh'); cb.innerHTML='';
+  for (let c=1;c<=16;c++) cb.append(h('button',{class:scSel.has(c)?'on':'',on:{click:e=>{ scSel.has(c)?scSel.delete(c):scSel.add(c); e.target.classList.toggle('on',scSel.has(c)); }}},String(c)));
+  const ps=$('#scPreset'); Object.keys(SCALES).forEach(k=>ps.append(h('option',{value:k},k)));
+  const rt=$('#scRoot'); NOTE_NAMES.forEach((n,i)=>rt.append(h('option',{value:i},n)));
+  const box=$('#scSl'); box.innerHTML='';
+  NOTE_NAMES.forEach((n,i)=>{ const s=slider({label:n,min:-64,max:63,value:0,def:0,fmt:v=>(v>0?'+':'')+v+'¢',key:'sc'+i,onChange:v=>{scVals[i]=v;}}); scSliders.push(s); box.append(s); });
+  $('#scLoad').onclick=()=>{ const base=SCALES[ps.value], r=+rt.value; scVals=NOTE_NAMES.map((_,i)=>base[(i-r+12)%12]); scSliders.forEach((s,i)=>s.setValue(scVals[i])); toast('Preset carregado. Toque em Enviar.'); };
+  $('#scSend').onclick=()=>{ if (!scSel.size){ toast('Escolha ao menos um canal'); return; }
+    scSel.forEach(c=>{ ST.parts[c].scale=[...scVals]; dt1(PA(c,0x40), scVals.map(v=>clamp(v+64,0,127)), `Scale tune ch${c}`); }); save(); toast('Escala enviada'); };
+}
+
+/* ================= CENAS / ENVIAR TUDO ================= */
+function sendAll(){
+  dt1([0x40,0,0x04],[ST.master.vol],'Master volume='+ST.master.vol);
+  for (let ch=1;ch<=16;ch++){
+    const p=ST.parts[ch];
+    if (p.toneSet) M.tone(ch,p.msb,p.lsb,p.pc,p.name);
+    M.cc(ch,7,effVol(ch)); M.cc(ch,10,p.pan); M.cc(ch,11,p.exp); M.cc(ch,91,p.rev); M.cc(ch,93,p.cho);
+    NRPN_MOD.forEach(([ms,ls],i)=>{ if (p.mod[i]!==64) M.nrpn(ch,ms,ls,p.mod[i]); });
+    if (p.bend!==2) M.rpn(ch,0,0,p.bend,0);
+    if (p.coarse) M.rpn(ch,0,2,64+p.coarse,0);
+    if (p.fine){ const x=clamp(8192+Math.round(p.fine*8192/100),0,16383); M.rpn(ch,0,1,x>>7,x&127); }
+    if (p.keyShift) dt1(PA(ch,0x16),[0x40+p.keyShift]);
+    if (p.lo!==0) dt1(PA(ch,0x1D),[p.lo]); if (p.hi!==127) dt1(PA(ch,0x1E),[p.hi]);
+    if (!p.poly) dt1(PA(ch,0x13),[0]);
+    if (!p.rx) dt1(PA(ch,0x02),[0x10]);
+    if (p.rhythm!==(ch===10?1:0)) dt1(PA(ch,0x15),[p.rhythm]);
+    if (p.scale.some(v=>v)) dt1(PA(ch,0x40), p.scale.map(v=>clamp(v+64,0,127)));
+    Object.entries(p.drums||{}).forEach(([n,d])=>{ n=+n; if (d.pitch!==64) M.nrpn(ch,0x18,n,d.pitch); if (d.level!=null) M.nrpn(ch,0x1A,n,d.level); if (d.pan!=null) M.nrpn(ch,0x1C,n,d.pan); if (d.rev!=null) M.nrpn(ch,0x1D,n,d.rev); if (d.cho!=null) M.nrpn(ch,0x1E,n,d.cho); });
+  }
+  const R=ST.rev, C=ST.cho;
+  dt1([0x40,1,0x30],[R.macro]); dt1([0x40,1,0x33],[R.level]); dt1([0x40,1,0x34],[R.time]);
+  dt1([0x40,1,0x38],[C.macro]); dt1([0x40,1,0x3A],[C.level]);
+  if (ST.efx.type){ const [m,l]=EFX_TYPES[ST.efx.type]; dt1([0x40,3,0],[m,l]); for (let c=1;c<=16;c++) if (ST.parts[c].efx) sendPartEfx(c); }
+  toast('Estado enviado ('+ (sxq.length) +' SysEx na fila)');
+}
+function scenes(){ return LS.get('e480b_scenes', {}); }
+function fillScenes(){ const s=$('#sceneSel'); const cur=s.value; s.innerHTML='<option value="">Cenas…</option>'+Object.keys(scenes()).sort().map(n=>`<option>${esc(n)}</option>`).join(''); s.value=cur; }
+function loadState(obj){
+  const layers=ST.layers, thruSrc=ST.thruSrc, thruAll=ST.thruAll;
+  ST=Object.assign(defState(), JSON.parse(JSON.stringify(obj)));
+  for (let c=1;c<=16;c++) ST.parts[c]=Object.assign(defPart(c), ST.parts[c]||{});
+  if (!obj.layers){ ST.layers=layers; ST.thruSrc=thruSrc; ST.thruAll=thruAll; }
+  save(); buildMixer(); buildFx(); renderEditor(); renderLayers(); $('#mVol').value=ST.master.vol; sendAll();
+}
+function bindScenes(){
+  fillScenes();
+  $('#sceneSave').onclick=()=>{ const n=prompt('Nome da cena:', $('#sceneSel').value||'Cena 1'); if (!n) return; const s=scenes(); s[n]=JSON.parse(JSON.stringify(ST)); LS.set('e480b_scenes',s); fillScenes(); $('#sceneSel').value=n; toast('Cena salva'); };
+  $('#sceneLoad').onclick=()=>{ const n=$('#sceneSel').value; if (!n) return; loadState(scenes()[n]); toast('Cena "'+n+'" carregada e enviada'); };
+  $('#sceneDel').onclick=()=>{ const n=$('#sceneSel').value; if (!n||!confirm('Apagar "'+n+'"?')) return; const s=scenes(); delete s[n]; LS.set('e480b_scenes',s); fillScenes(); };
+  $('#sceneExp').onclick=()=>download('e480b-cenas.json', JSON.stringify({current:ST, scenes:scenes()},null,1), 'application/json');
+  $('#sceneImp').onclick=()=>$('#sceneFile').click();
+  $('#sceneFile').onchange=async e=>{ const f=e.target.files[0]; if (!f) return; try{ const j=JSON.parse(await f.text()); if (j.scenes){ LS.set('e480b_scenes', Object.assign(scenes(), j.scenes)); fillScenes(); } if (j.current && confirm('Carregar também o estado atual do arquivo?')) loadState(j.current); toast('Importado'); }catch(err){ toast('Arquivo inválido'); } e.target.value=''; };
+  $('#mVol').value=ST.master.vol;
+  $('#mVol').oninput=e=>{ ST.master.vol=+e.target.value; throttle('mv',()=>dt1([0x40,0,0x04],[ST.master.vol],'Master volume='+ST.master.vol)); save(); };
+}
+function download(name, data, type){
+  const blob = data instanceof Blob ? data : new Blob([data],{type});
+  const a=h('a',{href:URL.createObjectURL(blob),download:name}); document.body.append(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1000);
+}
+
+/* ================= MONITOR / FERRAMENTAS ================= */
+function parseHex(s){
+  const toks=s.replace(/0x/gi,'').replace(/[,;]/g,' ').trim().split(/\s+/).filter(Boolean);
+  const out=[]; let sumAt=-1;
+  for (const t of toks){ if (t==='??'){ sumAt=out.length; out.push(0); continue; } const v=parseInt(t,16); if (isNaN(v)||v>255) throw new Error('Byte inválido: '+t); out.push(v); }
+  if (sumAt>=0) out[sumAt]=rolandSum(out.slice(5,sumAt));
+  return out;
+}
+function bindMonitor(){
+  $('#logPause').onclick=e=>{ APP.paused=!APP.paused; e.target.classList.toggle('on',APP.paused); e.target.textContent=APP.paused?'Continuar':'Pausar'; };
+  $('#logClear').onclick=()=>{ APP.log=[]; $('#log').innerHTML=''; };
+  $('#logCopy').onclick=()=>copy(APP.log.join('\n'));
+  $('#rawSend').onclick=()=>{ try{ const b=parseHex($('#rawHex').value); if (!b.length) return; if (b[0]===0xF0) queueSysex(b,'manual'); else sendRaw(b,'manual'); }catch(e){ toast(e.message); } };
+  $('#btnId').onclick=()=>{ $('#idRes').textContent='Identity: aguardando resposta…'; sendRaw([0xF0,0x7E,0x10,0x06,0x01,0xF7],'Identity Request'); setTimeout(()=>{ if ($('#idRes').textContent.includes('aguardando')) $('#idRes').textContent='Identity: sem resposta (normal em equipamentos antigos; confira a ligação MIDI OUT→app)'; },1500); };
+  $('#btnReadParts').onclick=()=>{ APP.readParts={}; renderReadParts(); for (let c=1;c<=16;c++){ rq1(PA(c,0x00),[0,0,2],`RQ1 tone ch${c}`); rq1(PA(c,0x02),[0,0,1],`RQ1 rx ch${c}`); } toast('Pedidos enviados. Respostas aparecem na tabela.'); };
+  $('#btnDump').onclick=()=>{
+    if (APP.dumpBuf){ finishDump(); return; }
+    APP.dumpBuf=[]; $('#btnDump').textContent='Aguardando… (toque p/ terminar)';
+    rq1([0x48,0x00,0x00],[0x00,0x1D,0x10],'RQ1 bulk dump (sistema + 16 partes)');
+    APP.dumpTimer=setTimeout(finishDump, 8000);
+  };
+  $('#btnSyx').onclick=()=>$('#syxFile').click();
+  $('#syxFile').onchange=async e=>{ const f=e.target.files[0]; if (!f) return; const b=new Uint8Array(await f.arrayBuffer()); let cur=null, n=0; for (const x of b){ if (x===0xF0) cur=[x]; else if (cur){ cur.push(x); if (x===0xF7){ queueSysex(cur,`.syx pacote ${++n}`); cur=null; } } } toast(n+' pacotes na fila'); e.target.value=''; };
+}
+function finishDump(){
+  clearTimeout(APP.dumpTimer); const b=APP.dumpBuf; APP.dumpBuf=null; $('#btnDump').textContent='Backup (bulk dump)';
+  if (!b || !b.length){ toast('Nenhum dado recebido'); return; }
+  markTest('dump','ok');
+  download('e480b-backup.syx', new Blob([new Uint8Array(b)],{type:'application/octet-stream'}));
+  toast(b.length+' bytes salvos');
+}
+function copy(t){ (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Copiado')).catch(()=>{ const ta=h('textarea',{value:t}); document.body.append(ta); ta.select(); try{document.execCommand('copy'); toast('Copiado');}catch(e){} ta.remove(); }); }
+
+/* ================= TESTES ================= */
+let scanTimer=null;
+function channelScan(btn){
+  if (scanTimer){ clearInterval(scanTimer); scanTimer=null; btn.textContent='Tocar canais 1→16'; return; }
+  let c=0; btn.textContent='Parar';
+  scanTimer=setInterval(()=>{ c++; if (c>16){ clearInterval(scanTimer); scanTimer=null; btn.textContent='Tocar canais 1→16'; toast('Fim da varredura'); return; }
+    setCur(c); toast('Canal '+c); const n = c===10?38:60; M.noteOn(c,n,100); setTimeout(()=>M.noteOff(c,n),900); },1400);
+}
+const TESTS = [
+  {id:'conn', t:'1. Conexão básica', p:'Escolha a saída e a entrada. No Mixer, toque ▶ no canal 1. Deve soar uma nota no E-480B. Toque teclas do E-480B e veja se aparecem no Monitor.', a:[['Tocar nota ch1',()=>testNote(1)],['Abrir Monitor',()=>showTab('mon')]]},
+  {id:'id', t:'2. Identity Request', p:'Pergunta ao teclado quem ele é. Equipamentos de 1998 podem não responder; se responder, a linha "Identity" no Monitor é preenchida.', a:[['Enviar',()=>{showTab('mon'); $('#btnId').click();}]]},
+  {id:'scan', t:'3. Descobrir quem toca em cada canal', p:'Toca uma nota em cada canal, de 1 a 16. Anote quais canais soam e com que timbre. Repita com um estilo do arranjador parado e depois tocando. Isso revela os canais internos (Upper, Lower, acompanhamento).', a:[['Tocar canais 1→16',(e)=>channelScan(e.target)]]},
+  {id:'rq1', t:'4. Ler partes por SysEx (RQ1)', p:'Pede ao teclado o timbre e o canal de cada parte. Se responder, a tabela no Monitor mostra o que o painel/arranjador está usando agora. Teste com timbres diferentes no painel.', a:[['Ler partes',()=>{showTab('mon'); $('#btnReadParts').click();}]]},
+  {id:'panel', t:'5. O que o painel transmite', p:'Abra o Monitor. Troque de timbre no painel, use pedal, alavanca e bend. Veja o canal (TX MIDI Ch) e se Bank Select/Program Change aparecem. Os valores devem bater com a lista de timbres (CC0·CC32·PC).', a:[['Abrir Monitor',()=>showTab('mon')]]},
+  {id:'tones', t:'6. Timbres de expansão (CC32 = 64/65/66)', p:'No canal 1 (ou outro livre), passe pelos timbres com "próximo ▶" e confira se o som corresponde ao nome. Esse é o teste mais importante para saber se o mapa do E-300 vale para o E-480B.', a:[['Ir para Timbres',()=>showTab('tones')]]},
+  {id:'arr', t:'7. Arranjador + app ao mesmo tempo', p:'Ligue um estilo no teclado e mande timbres/volumes para os canais que tocam o acompanhamento (descobertos no teste 3). O arranjador sobrescreve? O volume/mute por canal funciona como mixer do acompanhamento?', a:[['Ir para Mixer',()=>showTab('mixer')]]},
+  {id:'nrpn', t:'8. Editor NRPN', p:'Escolha um pad ou synth e mexa em Cutoff e Ressonância (aba Som) enquanto toca. Deve mudar o brilho.', a:[['Ir para Som',()=>showTab('edit')]]},
+  {id:'fx', t:'9. Reverb e Chorus (SysEx)', p:'Troque o tipo de reverb (Room → Hall → Delay) com o Reverb do canal alto. Se o som mudar, o SysEx GS está funcionando.', a:[['Ir para Efeitos',()=>showTab('fx')]]},
+  {id:'efx', t:'10. EFX existe no E-480B?', p:'Coloque um órgão no canal 1, escolha EFX "Rotary" ou "Overdrive", envie e ligue o canal 1. Se nada mudar, o E-300 provavelmente não tem o processador do E-500.', a:[['Ir para Efeitos',()=>showTab('fx')]]},
+  {id:'layers', t:'11. Camadas extras', p:'Precisa de MIDI IN e OUT. Na aba Tocar, ative a camada 1 no canal 2 com Strings, toque no E-480B: o som do painel + strings devem soar juntos. Teste splits com nota mín./máx.', a:[['Ir para Tocar',()=>showTab('play')]]},
+  {id:'drum2', t:'12. Segunda bateria / percussão', p:'Na aba Bateria, escolha o canal 11, "Tornar este canal uma parte de bateria", depois um kit (ex.: Brush). Toque os pads.', a:[['Ir para Bateria',()=>showTab('drum')]]},
+  {id:'scale', t:'13. Escala árabe / microtons', p:'Na aba Escalas, preset "Árabe" no canal do Upper (descoberto no teste 3) e toque pelo teclado do painel. Se funcionar, dá para fazer escalas para forró/baião com "meio bemol".', a:[['Ir para Escalas',()=>showTab('scale')]]},
+  {id:'dump', t:'14. Backup por bulk dump', p:'Pede ao teclado todos os parâmetros GS de uma vez e salva um .syx. Se funcionar, dá para restaurar com "Enviar .syx".', a:[['Ir para Monitor',()=>showTab('mon')]]},
+  {id:'ble', t:'15. MIDI Bluetooth (M-VAVE)', p:'Ligue o M-VAVE nas portas MIDI do E-480B (IN no OUT e OUT no IN). No Chrome/Edge toque em "Bluetooth" e escolha o adaptador. Teste uma nota, depois o Identity Request e a leitura RQ1 (SysEx pelo Bluetooth). Anote se há atraso perceptível ao tocar.', a:[['Conectar',()=>bleConnect()],['Tocar nota ch1',()=>testNote(1)]]},
+  {id:'reset', t:'16. GS Reset e o painel', p:'Envie GS Reset e veja o que acontece com o painel e o arranjador (timbres voltam ao padrão? estilo para?). Cuidado: apaga as mudanças do app.', a:[['GS Reset',()=>M.gsReset()]]}
+];
+function buildTests(){
+  const res=LS.get('e480b_tests',{}); const box=$('#tests'); box.innerHTML='';
+  TESTS.forEach(T=>{
+    const r=res[T.id]||{s:'',n:''};
+    const card=h('div',{class:'card test '+(r.s||''),id:'test-'+T.id});
+    const mk=(s,l)=>h('button',{class:r.s===s?'on':'',on:{click:e=>{ markTest(T.id, r.s===s?'':s); }}},l);
+    const notes=h('textarea',{rows:2,placeholder:'Anotações (canais, timbres, o que aconteceu)…',value:r.n||'',on:{input:e=>{ const all=LS.get('e480b_tests',{}); all[T.id]=Object.assign(all[T.id]||{}, {n:e.target.value}); LS.set('e480b_tests',all); }}});
+    card.append(h('h4',{},T.t), h('p',{},T.p), h('div',{class:'row'},...T.a.map(([l,f])=>h('button',{on:{click:f}},l)), h('span',{class:'grow'}), h('span',{class:'res row',style:'gap:4px'}, mk('ok','✅'), mk('bad','❌'), mk('q','❓'))), h('div',{style:'margin-top:8px'},notes));
+    box.append(card);
+  });
+  $('#testsExport').onclick=()=>{ const all=LS.get('e480b_tests',{}); copy(TESTS.map(T=>{ const r=all[T.id]||{}; return `${T.t}: ${r.s==='ok'?'OK':r.s==='bad'?'FALHOU':r.s==='q'?'DÚVIDA':'—'}${r.n?' — '+r.n:''}`; }).join('\n')); };
+}
+function markTest(id, s){ const all=LS.get('e480b_tests',{}); all[id]=Object.assign(all[id]||{}, {s}); LS.set('e480b_tests',all); buildTests(); }
+
+/* ================= INÍCIO ================= */
+function init(){
+  buildNav(); buildMixer(); buildTones(); buildKeyboard(); bindKeyboard(); renderLayers(); buildFx(); buildDrums(); buildScales(); bindMonitor(); buildTests(); bindScenes();
+  $('#outSel').onchange=selectPorts; $('#inSel').onchange=selectPorts;
+  $('#btnGS').onclick=()=>{ if (confirm('Enviar GS Reset? Todas as partes voltam ao padrão.')) M.gsReset(); };
+  $('#btnPanic').onclick=M.panic;
+  $('#btnBle').onclick=bleConnect;
+  $('#btnSendAll').onclick=sendAll;
+  $('#tmClose').onclick=()=>$('#toneModal').classList.remove('show');
+  $('#toneModal').addEventListener('click',e=>{ if (e.target.id==='toneModal') $('#toneModal').classList.remove('show'); });
+  $('#tmSearch').addEventListener('input',renderModal);
+  setCur(1); showTab(LS.get('e480b_tab','mixer'));
+  initMidi();
+}
+if (typeof window!=='undefined' && !window.__TEST__) document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

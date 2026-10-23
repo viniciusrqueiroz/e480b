@@ -95,7 +95,7 @@ th{color:var(--dim);font-weight:500}
 </head>
 <body>
 <header>
-  <h1><b>E-480B</b> Control</h1>
+  <h1><b>E-480B</b> Control <span class="tag" id="appVer" title="Versão do app"></span></h1>
   <span class="pill"><span class="dot" id="dot"></span><span id="status">Sem MIDI</span></span>
   <label class="note">Saída <select id="outSel"><option value="">—</option></select></label>
   <label class="note">Entrada <select id="inSel"><option value="">—</option></select></label>
@@ -261,6 +261,7 @@ th{color:var(--dim);font-weight:500}
 
 <script>
 'use strict';
+const APP_VERSION = 'v4 · 22/10/2026 23:45';
 /* ================= DADOS (manual E-300 / implementação E-500/E-300) ================= */
 // nº, * = no painel, nome ; CC0 ; CC32 ; PC (1-128)
 const TONE_TXT = `001*Grand Piano1;8;64;1
@@ -1291,6 +1292,7 @@ function markTest(id, s){ const all=LS.get('e480b_tests',{}); all[id]=Object.ass
 
 /* ================= INÍCIO ================= */
 function init(){
+  $('#appVer').textContent = APP_VERSION;
   buildNav(); buildMixer(); buildTones(); buildKeyboard(); bindKeyboard(); renderLayers(); buildFx(); buildDrums(); buildScales(); bindMonitor(); buildTests(); bindScenes();
   $('#outSel').onchange=selectPorts; $('#inSel').onchange=selectPorts;
   $('#btnGS').onclick=()=>{ if (confirm('Enviar GS Reset? Todas as partes voltam ao padrão.')) M.gsReset(); };

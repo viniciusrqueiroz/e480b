@@ -24,14 +24,17 @@ button.danger{border-color:var(--bad);color:var(--bad)}
 select,input[type=text],input[type=number],textarea{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:7px 10px}
 textarea{width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 input[type=range]{width:100%;accent-color:var(--accent);height:28px}
-header{position:sticky;top:0;z-index:20;background:#0d0f12;border-bottom:1px solid var(--line);padding:10px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+body{padding-top:var(--gap,0px)}
+.topbar{position:sticky;top:var(--gap,0px);z-index:20}
+.topbar::before{content:'';position:absolute;left:0;right:0;bottom:100%;height:var(--gap,0px);background:#0d0f12}
+header{background:#0d0f12;border-bottom:1px solid var(--line);padding:10px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 header h1{font-size:17px;margin:0 8px 0 0;letter-spacing:.5px}
 header h1 b{color:var(--accent)}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:var(--panel2);font-size:13px;color:var(--dim)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--bad)}
 .dot.ok{background:var(--ok)}
 .grow{flex:1}
-nav{position:sticky;top:57px;z-index:19;background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:4px;overflow-x:auto;padding:6px 10px;align-items:center}
+nav{background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:4px;overflow-x:auto;padding:6px 10px;align-items:center}
 nav button{border:none;background:none;color:var(--dim);white-space:nowrap;padding:8px 12px}
 nav button.sel{color:#111;background:var(--accent);font-weight:600}
 nav .chsel{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--dim);font-size:13px;white-space:nowrap}
@@ -90,10 +93,11 @@ th{color:var(--dim);font-weight:500}
 .modal .card{width:min(760px,100%);max-height:92vh;overflow:auto}
 .chbtns{display:flex;flex-wrap:wrap;gap:4px}
 .chbtns button{width:42px;padding:6px 0}
-@media (max-width:700px){nav{top:94px}.sl{grid-template-columns:80px 1fr 44px}}
+@media (max-width:700px){.sl{grid-template-columns:80px 1fr 44px}}
 </style>
 </head>
 <body>
+<div class="topbar">
 <header>
   <h1><b>E-480B</b> Control <span class="tag" id="appVer" title="Versão do app"></span></h1>
   <span class="pill"><span class="dot" id="dot"></span><span id="status">Sem MIDI</span></span>
@@ -104,8 +108,10 @@ th{color:var(--dim);font-weight:500}
   <button id="btnSendAll" title="Envia o estado inteiro do app para o teclado">Enviar tudo</button>
   <button id="btnGS">GS Reset</button>
   <button id="btnPanic" class="danger">Pânico</button>
+  <button id="btnGap" class="small" title="Espaço no topo para a barra de endereço do navegador">↕ <span id="gapLbl"></span></button>
 </header>
 <nav id="nav"></nav>
+</div>
 <main>
 
 <!-- MIXER -->
@@ -265,7 +271,7 @@ th{color:var(--dim);font-weight:500}
 
 <script>
 'use strict';
-const APP_VERSION = 'v6 · 22/10/2026 23:59';
+const APP_VERSION = 'v8 · 23/10/2026 00:10';
 /* ================= DADOS (manual E-300 / implementação E-500/E-300) ================= */
 // nº, * = no painel, nome ; CC0 ; CC32 ; PC (1-128)
 const TONE_TXT = `001*Grand Piano1;8;64;1
@@ -845,14 +851,22 @@ async function initMidi(){
   }
   diag('Web MIDI encontrado ('+typeof navigator.requestMIDIAccess+'). Pedindo acesso com SysEx…');
   setStatus(false,'Pedindo acesso ao MIDI…');
-  try {
-    APP.access = await withTimeout(Promise.resolve(navigator.requestMIDIAccess({sysex:true})), 5000);
-    diag('Acesso com SysEx: OK');
-  } catch(e){
-    diag('Com SysEx falhou: '+(e&&e.message||e)+'. Tentando sem SysEx…');
-    try { APP.access = await withTimeout(Promise.resolve(navigator.requestMIDIAccess()), 5000); diag('Acesso sem SysEx: OK'); toast('MIDI sem SysEx: efeitos/escalas/leitura não vão funcionar'); }
-    catch(e2){ diag('Sem SysEx falhou: '+(e2&&e2.message||e2)); setStatus(false,'MIDI não respondeu (ver Monitor)'); return; }
+  const attempts = [
+    ['com SysEx', ()=>navigator.requestMIDIAccess({sysex:true})],
+    ['sem opções', ()=>navigator.requestMIDIAccess()],
+    ['sysex:false', ()=>navigator.requestMIDIAccess({sysex:false})],
+    ['com SysEx (2ª vez, após 1,5 s)', ()=>new Promise(r=>setTimeout(r,1500)).then(()=>navigator.requestMIDIAccess({sysex:true}))]];
+  APP.access=null;
+  for (const [label, fn] of attempts){
+    try {
+      APP.access = await withTimeout(Promise.resolve().then(fn), 3000);
+      if (!APP.access) throw new Error('acesso veio vazio');
+      diag('Acesso '+label+': OK');
+      if (label!=='com SysEx' && !label.startsWith('com SysEx')) toast('MIDI sem SysEx: efeitos/escalas/leitura podem não funcionar');
+      break;
+    } catch(e){ APP.access=null; diag('Acesso '+label+' falhou: '+errText(e)); }
   }
+  if (!APP.access){ setStatus(false,'MIDI recusado (ver Monitor)'); diag('Dica: feche outras abas do Web MIDI Browser, confira o cabo/interface e toque em "Reconectar MIDI".'); return; }
   try { diag('outputs: '+describeObj(APP.access.outputs)+' · inputs: '+describeObj(APP.access.inputs)); } catch(e){ diag('descrição: '+e.message); }
   try { APP.access.onstatechange = ()=>fillPorts(); } catch(e){ diag('onstatechange: '+e.message); }
   fillPorts();
@@ -862,6 +876,16 @@ APP.diag=[]; APP.outList=[]; APP.inList=[];
 function diag(t){
   APP.diag.push(new Date().toTimeString().slice(0,8)+'  '+t); if (APP.diag.length>60) APP.diag.shift();
   const el=$('#diagBox'); if (el) el.textContent=APP.diag.join('\n');
+}
+function errText(e){
+  if (e===null || e===undefined) return String(e);
+  if (typeof e!=='object') return String(e);
+  const parts=[];
+  ['name','message','code','reason','description'].forEach(k=>{ try { if (e[k]!==undefined && e[k]!=='') parts.push(k+'='+e[k]); } catch(_){} });
+  try { const j=JSON.stringify(e); if (j && j!=='{}') parts.push(j); } catch(_){}
+  try { const ks=Object.getOwnPropertyNames(e); if (ks.length) parts.push('campos: '+ks.join(',')); } catch(_){}
+  try { parts.push(Object.prototype.toString.call(e)); } catch(_){}
+  return parts.join(' · ');
 }
 function withTimeout(p,ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('sem resposta em '+(ms/1000)+' s')),ms))]); }
 function describeObj(x){
@@ -1359,8 +1383,19 @@ function buildTests(){
 function markTest(id, s){ const all=LS.get('e480b_tests',{}); all[id]=Object.assign(all[id]||{}, {s}); LS.set('e480b_tests',all); buildTests(); }
 
 /* ================= INÍCIO ================= */
+const GAPS=[0,40,60,80,100];
+function applyGap(g){ document.documentElement.style.setProperty('--gap', g+'px'); $('#gapLbl').textContent = g+'px'; LS.set('e480b_gap', g); }
+function initGap(){
+  let g = LS.get('e480b_gap', null);
+  const q = new URLSearchParams(location.search).get('gap');
+  if (q!==null && !isNaN(+q)) g = clamp(+q,0,300);
+  if (g===null) g = /WebMIDIBrowser/i.test(navigator.userAgent) ? 60 : 0;
+  applyGap(g);
+  $('#btnGap').onclick=()=>{ const cur=LS.get('e480b_gap',0); const i=GAPS.indexOf(cur); applyGap(GAPS[(i+1)%GAPS.length]); toast('Espaço no topo: '+LS.get('e480b_gap',0)+' px'); };
+}
 function init(){
   $('#appVer').textContent = APP_VERSION;
+  initGap();
   buildNav(); buildMixer(); buildTones(); buildKeyboard(); bindKeyboard(); renderLayers(); buildFx(); buildDrums(); buildScales(); bindMonitor(); buildTests(); bindScenes();
   $('#outSel').onchange=selectPorts; $('#inSel').onchange=selectPorts;
   $('#btnGS').onclick=()=>{ if (confirm('Enviar GS Reset? Todas as partes voltam ao padrão.')) M.gsReset(); };

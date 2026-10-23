@@ -94,6 +94,45 @@ th{color:var(--dim);font-weight:500}
 .modal .card{width:min(760px,100%);max-height:92vh;overflow:auto}
 .chbtns{display:flex;flex-wrap:wrap;gap:4px}
 .chbtns button{width:42px;padding:6px 0}
+.fdbank{display:flex;gap:6px;overflow-x:auto;padding:10px 2px 14px}
+.fd{flex:1 0 60px;max-width:92px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.fd.cur{border-color:var(--accent)}
+.fd.muted .trk{opacity:.4}
+.fd .ch{font-weight:700;font-size:15px}
+.fd .nm{font-size:11px;color:var(--dim);text-align:center;height:42px;overflow:hidden;line-height:14px;width:100%;word-break:break-word}
+.fd .nm b{color:var(--accent2);font-weight:600}
+.fd .val{font-variant-numeric:tabular-nums;font-size:13px;min-height:18px}
+.fd .trk{position:relative;width:46px;height:max(220px, calc(100vh - 430px));background:#0b0c0e;border:1px solid var(--line);border-radius:10px;touch-action:none;cursor:ns-resize;user-select:none;-webkit-user-select:none}
+.fd .fill{position:absolute;left:3px;right:3px;bottom:3px;background:linear-gradient(var(--accent),#7a3600);border-radius:7px;opacity:.45;pointer-events:none}
+.fd .ctr{position:absolute;left:0;right:0;height:1px;background:var(--dim);opacity:.5;pointer-events:none}
+.fd .cap{position:absolute;left:-5px;right:-5px;height:28px;background:linear-gradient(#f4f5f6,#b9bec6);border-radius:6px;box-shadow:0 2px 6px #000b;pointer-events:none}
+.fd .cap::after{content:'';position:absolute;left:7px;right:7px;top:13px;height:2px;background:#222}
+.fd.master{background:#16202c;border-color:#24435f}
+.fd.master .fill{background:linear-gradient(var(--blue),#1d4f85)}
+.fd button{padding:4px 0;width:44px;font-size:13px}
+.pal-top{gap:10px}
+button.big{padding:12px 18px;font-size:16px;font-weight:700}
+.pal-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:820px){.pal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.slot{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.slot.on{border-color:var(--accent)}
+.slot .hd{display:flex;justify-content:space-between;align-items:center}
+.slot .hd b{font-size:18px}
+.slot .tsel{display:grid;grid-template-columns:44px 1fr 44px;gap:4px}
+.slot .tsel button{padding:10px 0}
+.slot .tsel .tn{font-size:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:10px 4px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.seg button{padding:10px 0;font-size:14px}
+.slot .fd{max-width:none;width:100%;border:none;background:none;padding:0}
+.slot .fd .ch,.slot .fd .nm{display:none}
+.slot .fd .val{font-size:15px}
+.slot .fd .trk{width:72px;height:max(190px, calc(100vh - 600px))}
+.slot .bigon{padding:16px 0;font-size:18px;font-weight:700}
+.slot .opts{display:flex;gap:6px;justify-content:space-between;align-items:center;font-size:12px;color:var(--dim)}
+.slot .opts select{padding:4px 6px;font-size:12px}
+.scn{min-width:110px}
+.scn.has{border-color:var(--accent2)}
+.scn.cur{background:var(--accent2);color:#111;border-color:var(--accent2)}
 @media (max-width:700px){.sl{grid-template-columns:80px 1fr 44px}}
 </style>
 </head>
@@ -130,6 +169,36 @@ th{color:var(--dim);font-weight:500}
   </div>
   <p class="note" style="margin-top:0">Cada parte = um canal MIDI do gerador GS do teclado. O canal 10 é a bateria. O app não sabe o que o teclado está usando por dentro: os valores mostrados são os últimos que o app enviou.</p>
   <div class="grid g4" id="strips"></div>
+</section>
+
+<!-- PALCO -->
+<section id="sec-palco">
+  <div class="row pal-top">
+    <button id="palOn" class="big">Palco: desligado</button>
+    <span class="pill" id="palLocal">Som do teclado: normal</span>
+    <span class="grow"></span>
+    <span class="note">Split</span>
+    <button id="splDn">−</button><b id="splLbl" style="min-width:44px;text-align:center">C4</b><button id="splUp">+</button>
+    <button id="splLearn">Definir tocando</button>
+  </div>
+  <div class="row" style="margin:10px 0">
+    <span class="note">Cenas:</span><div class="row" id="palScenes" style="gap:6px"></div>
+    <span class="grow"></span><button id="palSaveMode">Salvar cena…</button>
+  </div>
+  <div class="pal-grid" id="palSlots"></div>
+  <p class="note">Com o Palco ligado, o teclado deixa de tocar sozinho (Local Off): as notas vão ao app e voltam para os 4 sons nos canais 11–14. Esquerda = notas abaixo do split; Direita = do split para cima. O fader controla a expressão (CC11) de cada som. Precisa de Saída e Entrada MIDI. Pelo Bluetooth existe um pequeno atraso de ida e volta.</p>
+</section>
+
+<!-- FADERS -->
+<section id="sec-faders">
+  <div class="row">
+    <h2 style="margin:0">Faders</h2>
+    <div class="chips" id="fdModes" style="margin:0 0 0 8px"></div>
+    <span class="grow"></span>
+    <label class="note"><input type="checkbox" id="fdUsed"> só canais em uso</label>
+  </div>
+  <div class="fdbank" id="fdBank"></div>
+  <p class="note" style="margin:0">Arraste o fader para cima e para baixo. Toque duas vezes para voltar ao padrão. "Em uso" = canais com timbre enviado, partes do painel, camadas ativas e bateria.</p>
 </section>
 
 <!-- TIMBRES -->
@@ -290,7 +359,7 @@ th{color:var(--dim);font-weight:500}
 
 <script>
 'use strict';
-const APP_VERSION = 'v12 · 23/10/2026 00:45';
+const APP_VERSION = 'v14 · 23/10/2026 01:15';
 /* ================= DADOS (manual E-300 / implementação E-500/E-300) ================= */
 // nº, * = no painel, nome ; CC0 ; CC32 ; PC (1-128)
 const TONE_TXT = `001*Grand Piano1;8;64;1
@@ -620,6 +689,8 @@ const LS = {
 let ST = Object.assign(defState(), LS.get('e480b_state', {}));
 // garante campos novos em estados antigos
 for (let c=1;c<=16;c++) ST.parts[c] = Object.assign(defPart(c), ST.parts[c]||{});
+if (!ST.palco) ST.palco = defPalco();
+ST.palco.on = false; // nunca liga sozinho ao abrir (o teclado pode estar em Local On)
 let saveT=null; function save(){ clearTimeout(saveT); saveT=setTimeout(()=>LS.set('e480b_state', ST), 300); }
 
 const APP = {access:null, out:null, inp:null, cur:1, oct:4, sus:false, paused:false, log:[], dumpBuf:null, drNote:36, drCh:10};
@@ -725,6 +796,9 @@ function onMidi(ev){
   if (st===0xF0){ handleSysex(b); return; }
   if (st>=0xF0) return;
   const ch=(st&15)+1, t=st&0xF0;
+  // modo Palco
+  if (ST.palco.on && (ST.thruAll || ch===ST.thruSrc)) palcoRoute(t,b);
+  else if (APP.learnSplit && t===0x90 && b[2]>0){ setSplit(b[1]); APP.learnSplit=false; }
   // timbre escolhido no painel (vem no canal TX)
   if (ch===ST.thruSrc){
     if (t===0xB0 && b[1]===0) APP.pnl.msb=b[2];
@@ -1016,14 +1090,72 @@ function testNote(ch, n=60, ms=450){ M.noteOn(ch,n,+$('#vel').value||100); setTi
 function setCur(ch){ APP.cur=ch; $$('.curch').forEach(e=>e.textContent=ch); $('#curSel').value=ch; $$('.strip').forEach(s=>s.classList.toggle('cur', +s.dataset.ch===ch)); renderEditor(); }
 
 /* ================= NAVEGAÇÃO ================= */
-const TABS=[['mixer','Mixer'],['tones','Timbres'],['play','Tocar'],['edit','Som'],['fx','Efeitos'],['drum','Bateria'],['scale','Escalas'],['mon','Monitor'],['tests','Testes']];
+const TABS=[['palco','Palco'],['mixer','Mixer'],['faders','Faders'],['tones','Timbres'],['play','Tocar'],['edit','Som'],['fx','Efeitos'],['drum','Bateria'],['scale','Escalas'],['mon','Monitor'],['tests','Testes']];
 function buildNav(){
   const nav=$('#nav');
   TABS.forEach(([id,lbl])=>nav.append(h('button',{'data-t':id,on:{click:()=>showTab(id)}},lbl)));
   const sel=h('select',{id:'curSel',on:{change:e=>setCur(+e.target.value)}}, ...Array.from({length:16},(_,i)=>h('option',{value:i+1},'Canal '+(i+1))));
   nav.append(h('span',{class:'chsel'},'Canal atual', sel));
 }
-function showTab(id){ $$('section').forEach(s=>s.classList.toggle('show', s.id==='sec-'+id)); $$('#nav button[data-t]').forEach(b=>b.classList.toggle('sel', b.dataset.t===id)); LS.set('e480b_tab',id); if (id==='tones') renderToneList(); }
+function showTab(id){ $$('section').forEach(s=>s.classList.toggle('show', s.id==='sec-'+id)); $$('#nav button[data-t]').forEach(b=>b.classList.toggle('sel', b.dataset.t===id)); LS.set('e480b_tab',id); if (id==='tones') renderToneList(); if (id==='faders') buildFaders(); if (id==='palco') buildPalco(); if (id==='mixer' && stripEls[1]) buildMixer(); }
+
+/* ================= FADERS ================= */
+const FD_MODES = {
+  vol:{l:'Volume', min:0,max:127, def:100, get:p=>p.vol, set:(ch,p,v)=>{ p.vol=v; M.cc(ch,7,effVol(ch),`Volume ch${ch}=${v}`); }},
+  exp:{l:'Expressão', min:0,max:127, def:127, get:p=>p.exp, set:(ch,p,v)=>{ p.exp=v; M.cc(ch,11,v); }},
+  pan:{l:'Pan', min:0,max:127, def:64, center:64, fmt:fmtPan, get:p=>p.pan, set:(ch,p,v)=>{ p.pan=v; M.cc(ch,10,v); }},
+  rev:{l:'Reverb', min:0,max:127, def:40, get:p=>p.rev, set:(ch,p,v)=>{ p.rev=v; M.cc(ch,91,v); }},
+  cho:{l:'Chorus', min:0,max:127, def:0, get:p=>p.cho, set:(ch,p,v)=>{ p.cho=v; M.cc(ch,93,v); }},
+  cut:{l:'Brilho', min:14,max:114, def:64, center:64, fmt:fmtMod, get:p=>p.mod[3], set:(ch,p,v)=>{ p.mod[3]=v; M.nrpn(ch,1,0x20,v,`NRPN Cutoff=${v-64} ch${ch}`); }}
+};
+APP.fdMode = LS.get('e480b_fdmode','vol');
+function chanInUse(ch){
+  const p=ST.parts[ch];
+  return ch===10 || p.toneSet || Object.values(ST.panelMap||{}).includes(ch) || ST.layers.some(L=>L.on && L.ch===ch);
+}
+function makeFader(o){
+  // o: {title, sub, value, min, max, def, center, fmt, onChange, cls, footer}
+  const range=o.max-o.min;
+  const fill=h('div',{class:'fill'}), cap=h('div',{class:'cap'}), trk=h('div',{class:'trk'}, fill, cap);
+  if (o.center!==undefined){ const c=h('div',{class:'ctr'}); c.style.bottom=`calc(${(o.center-o.min)/range} * (100% - 28px) + 14px)`; trk.append(c); }
+  const val=h('div',{class:'val'});
+  let v=o.value;
+  const draw=()=>{ const f=(v-o.min)/range; cap.style.bottom=`calc(${f} * (100% - 28px))`; fill.style.height=`calc(${f} * (100% - 28px) + 11px)`; val.textContent=o.fmt?o.fmt(v):String(v); };
+  const fromY=y=>{ const r=trk.getBoundingClientRect(); const f=1-(y-r.top-14)/(r.height-28); return clamp(Math.round(o.min+Math.max(0,Math.min(1,f))*range), o.min, o.max); };
+  const set=nv=>{ if (nv===v) return; v=nv; draw(); throttle(trk, ()=>o.onChange(v)); };
+  let active=null;
+  trk.addEventListener('pointerdown',e=>{ e.preventDefault(); active=e.pointerId; try{ trk.setPointerCapture(e.pointerId); }catch(_){} set(fromY(e.clientY)); });
+  trk.addEventListener('pointermove',e=>{ if (active===e.pointerId) set(fromY(e.clientY)); });
+  const end=e=>{ if (active===e.pointerId) active=null; };
+  trk.addEventListener('pointerup',end); trk.addEventListener('pointercancel',end);
+  trk.addEventListener('dblclick',()=>{ if (o.def!==undefined) set(o.def); });
+  draw();
+  return h('div',{class:'fd '+(o.cls||'')}, h('div',{class:'ch'},o.title), h('div',{class:'nm'},o.sub), val, trk, ...(o.footer||[]));
+}
+function buildFaders(){
+  const modes=$('#fdModes'); modes.innerHTML='';
+  Object.entries(FD_MODES).forEach(([k,m])=>modes.append(h('button',{class:APP.fdMode===k?'on':'',on:{click:()=>{ APP.fdMode=k; LS.set('e480b_fdmode',k); buildFaders(); }}}, m.l)));
+  const used=$('#fdUsed'); used.checked=LS.get('e480b_fdused',false); used.onchange=e=>{ LS.set('e480b_fdused',e.target.checked); buildFaders(); };
+  const bank=$('#fdBank'); bank.innerHTML='';
+  const m=FD_MODES[APP.fdMode];
+  for (let ch=1; ch<=16; ch++){
+    if (used.checked && !chanInUse(ch)) continue;
+    const p=ST.parts[ch];
+    const roles=Object.keys(ROLE_NAMES).filter(k=>ST.panelMap[k]===ch).map(k=>ROLE_NAMES[k]);
+    if (ST.layers.some(L=>L.on && L.ch===ch)) roles.push('camada');
+    if (ch===10) roles.push('bateria');
+    const sub=h('span',{}, roles.length?h('b',{},roles.join(' + ')):'', roles.length?h('br'):'', p.toneSet ? p.name : (roles.length?'':'—'));
+    const mute=h('button',{class:p.mute?'on':'',on:{click:()=>{ p.mute=!p.mute; mute.classList.toggle('on',p.mute); card.classList.toggle('muted',effVol(ch)===0); sendVols(); save(); }}},'M');
+    const solo=h('button',{class:p.solo?'on':'',on:{click:()=>{ p.solo=!p.solo; sendVols(); save(); buildFaders(); }}},'S');
+    const card=makeFader({title:String(ch), sub, value:m.get(p), min:m.min, max:m.max, def:m.def, center:m.center, fmt:m.fmt,
+      cls:(ch===APP.cur?'cur':'')+(effVol(ch)===0?' muted':''), footer:[mute,solo],
+      onChange:v=>{ m.set(ch,p,v); save(); }});
+    card.querySelector('.ch').addEventListener('click',()=>{ setCur(ch); $$('.fd').forEach(f=>f.classList.remove('cur')); card.classList.add('cur'); });
+    bank.append(card);
+  }
+  bank.append(makeFader({title:'Master', sub:'volume geral', value:ST.master.vol, min:0, max:127, def:127, cls:'master',
+    onChange:v=>{ ST.master.vol=v; $('#mVol').value=v; dt1([0x40,0,0x04],[v],'Master volume='+v); save(); }}));
+}
 
 /* ================= MIXER ================= */
 function effVol(ch){ const anySolo = Object.values(ST.parts).some(p=>p.solo); const p=ST.parts[ch]; if (anySolo) return p.solo? p.vol:0; return p.mute?0:p.vol; }
@@ -1058,7 +1190,125 @@ function refreshStrips(){ for (let c=1;c<=16;c++){ const e=stripEls[c]; if (!e) 
 function applyTone(ch, t, preview){
   const p=ST.parts[ch]; p.msb=t.msb; p.lsb=t.lsb; p.pc=t.pc; p.name=t.name; p.toneSet=true;
   M.tone(ch,t.msb,t.lsb,t.pc,t.name); save(); refreshStrips(); renderLayers();
+  if (ST.palco){ const s=ST.palco.slots.find(x=>x.ch===ch); if (s && s.tone!==t.no){ s.tone=t.no; if ($('#sec-palco.show')) buildPalco(); } }
   if (preview) setTimeout(()=>testNote(ch,60,600),60);
+}
+
+/* ================= PALCO ================= */
+const SLOT_VARIANTS = {
+  piano:[1,2,3,11,4,5,6],
+  ep:[14,20,15,22,9,23,24,17],
+  organ:[50,51,46,47,63,67,68,65,54],
+  pad:[224,225,232,226,148,159,245,231]
+};
+function defPalco(){
+  return {on:false, split:60, slots:[
+    {name:'Piano',    kind:'piano', ch:11, tone:1,   region:'all', on:true,  level:110, swell:0,   sus:true},
+    {name:'Elétrico', kind:'ep',    ch:12, tone:14,  region:'all', on:false, level:90,  swell:0,   sus:true},
+    {name:'Órgão',    kind:'organ', ch:13, tone:50,  region:'all', on:false, level:80,  swell:0.5, sus:false},
+    {name:'Pad',      kind:'pad',   ch:14, tone:224, region:'all', on:false, level:85,  swell:1.5, sus:true}]};
+}
+const palcoMap=new Map(), ramps={};
+const inRegion=(r,n,split)=> r==='all' || (r==='left' ? n<split : n>=split);
+function palcoRoute(t,b){
+  const P=ST.palco;
+  if (t===0x90 && b[2]>0){
+    if (APP.learnSplit){ setSplit(b[1]); APP.learnSplit=false; return; }
+    const outs=[];
+    P.slots.forEach(s=>{ if (s.on && inRegion(s.region,b[1],P.split)){ sendRaw([0x90|(s.ch-1),b[1],b[2]]); outs.push([s.ch,b[1]]); }});
+    if (outs.length) palcoMap.set(b[1],outs);
+  } else if (t===0x80 || t===0x90){
+    const outs=palcoMap.get(b[1]); if (outs){ outs.forEach(([c,n])=>sendRaw([0x80|(c-1),n,64])); palcoMap.delete(b[1]); }
+  } else if (t===0xB0 && [1,64,66,67].includes(b[1])){
+    const pedal=[64,66].includes(b[1]);
+    // pedal vai a todos os sons com "Pedal" ligado (mesmo desligados, para soltar notas presas)
+    P.slots.forEach(s=>{ if (pedal ? s.sus : s.on) sendRaw([0xB0|(s.ch-1),b[1],b[2]]); });
+  } else if (t===0xE0){
+    P.slots.forEach(s=>{ if (s.on) sendRaw([0xE0|(s.ch-1),b[1],b[2]]); });
+  }
+}
+function ramp(ch,from,to,ms){
+  clearInterval(ramps[ch]);
+  if (!ms){ M.cc(ch,11,to,`Expression ch${ch}=${to}`); return; }
+  const steps=Math.max(1,Math.round(ms/40)); let i=0;
+  ramps[ch]=setInterval(()=>{ i++; const v=Math.round(from+(to-from)*i/steps); sendRaw([0xB0|(ch-1),11,clamp(v,0,127)]); if (i>=steps){ clearInterval(ramps[ch]); logLine('out',[0xB0|(ch-1),11,to],`Expression ch${ch} → ${to} (rampa ${ms} ms)`); } },40);
+}
+function setLocal(on){ M.cc(ST.thruSrc,122,on?127:0,`Local Control ${on?'ON':'OFF'} ch${ST.thruSrc}`); APP.localOff=!on; renderPalcoTop(); }
+function setSplit(n){ ST.palco.split=clamp(n,0,127); save(); renderPalcoTop(); toast('Split: '+noteName(ST.palco.split)); }
+function palcoApplyAll(){
+  ST.palco.slots.forEach(s=>{
+    const t=TONES.find(x=>x.no===s.tone)||TONES[0];
+    applyTone(s.ch,t,false);
+    const p=ST.parts[s.ch]; p.hold=true; dt1(PA(s.ch,0x0F),[1]);
+    M.cc(s.ch,7,effVol(s.ch)); M.cc(s.ch,11, s.on?s.level:0);
+  });
+}
+function palcoToggle(){
+  const P=ST.palco;
+  if (!P.on){
+    if (!APP.out || !APP.inp){ toast('Escolha Saída e Entrada MIDI primeiro'); return; }
+    P.on=true; setLocal(false); palcoApplyAll(); toast('Palco ligado: o teclado toca pelo app');
+  } else {
+    P.on=false; P.slots.forEach(s=>{ clearInterval(ramps[s.ch]); M.cc(s.ch,64,0); M.cc(s.ch,123,0); }); palcoMap.clear(); setLocal(true); toast('Palco desligado: teclado normal');
+  }
+  save(); buildPalco();
+}
+function renderPalcoTop(){
+  const P=ST.palco, b=$('#palOn'); if (!b) return;
+  b.textContent = P.on ? 'Palco: LIGADO' : 'Palco: desligado'; b.classList.toggle('on',P.on);
+  $('#palLocal').textContent = APP.localOff ? 'Som do teclado: pelo app (Local Off)' : 'Som do teclado: normal';
+  $('#splLbl').textContent = noteName(P.split);
+  $('#splLearn').classList.toggle('on',!!APP.learnSplit); $('#splLearn').textContent = APP.learnSplit ? 'Toque a tecla…' : 'Definir tocando';
+}
+function palScenes(){ const a=LS.get('e480b_palscenes',null); return Array.isArray(a) && a.length===6 ? a : Array(6).fill(null); }
+function renderPalScenes(){
+  const box=$('#palScenes'); box.innerHTML='';
+  palScenes().forEach((sc,i)=>{
+    const b=h('button',{class:'scn'+(sc?' has':'')+(APP.palScene===i?' cur':''),on:{click:()=>{
+      if (APP.palSave){ const n=prompt('Nome da cena:', sc?sc.name:`Cena ${i+1}`); if (!n) return; const all=palScenes(); all[i]={name:n, split:ST.palco.split, slots:JSON.parse(JSON.stringify(ST.palco.slots))}; LS.set('e480b_palscenes',all); APP.palSave=false; APP.palScene=i; $('#palSaveMode').classList.remove('on'); renderPalScenes(); toast('Cena salva'); return; }
+      if (!sc){ toast('Cena vazia. Use "Salvar cena…" e toque aqui.'); return; }
+      loadPalScene(sc); APP.palScene=i; renderPalScenes();
+    }}}, sc ? sc.name : `Cena ${i+1}`);
+    box.append(b);
+  });
+  $('#palSaveMode').onclick=e=>{ APP.palSave=!APP.palSave; e.target.classList.toggle('on',APP.palSave); toast(APP.palSave?'Toque na cena onde quer salvar':'Cancelado'); };
+}
+function loadPalScene(sc){
+  const P=ST.palco; P.split=sc.split;
+  sc.slots.forEach((src,i)=>{ const s=P.slots[i]; if (!s) return; const wasOn=s.on, oldLevel=s.level;
+    Object.assign(s,{tone:src.tone, region:src.region, on:src.on, level:src.level, swell:src.swell, sus:src.sus});
+    if (P.on){ const t=TONES.find(x=>x.no===s.tone); if (t && ST.parts[s.ch].name!==t.name) applyTone(s.ch,t,false);
+      if (s.on && !wasOn) ramp(s.ch,0,s.level,s.swell*1000); else if (!s.on && wasOn) ramp(s.ch,oldLevel,0,s.swell*1000); else if (s.on) M.cc(s.ch,11,s.level); }
+  });
+  save(); buildPalco(); toast('Cena: '+sc.name);
+}
+function buildPalco(){
+  const P=ST.palco;
+  renderPalcoTop(); renderPalScenes();
+  $('#palOn').onclick=palcoToggle;
+  $('#splDn').onclick=()=>setSplit(P.split-1); $('#splUp').onclick=()=>setSplit(P.split+1);
+  $('#splLearn').onclick=()=>{ APP.learnSplit=!APP.learnSplit; renderPalcoTop(); if (APP.learnSplit) toast('Toque no teclado a primeira nota da mão direita'); };
+  const grid=$('#palSlots'); grid.innerHTML='';
+  P.slots.forEach((s,i)=>{
+    const t=TONES.find(x=>x.no===s.tone);
+    const vars=SLOT_VARIANTS[s.kind]||[];
+    const stepVar=d=>{ let k=vars.indexOf(s.tone); k = k<0 ? 0 : (k+d+vars.length)%vars.length; const nt=TONES.find(x=>x.no===vars[k]); s.tone=nt.no; save(); if (P.on) applyTone(s.ch,nt,false); else { const p=ST.parts[s.ch]; } buildPalco(); };
+    const tsel=h('div',{class:'tsel'},
+      h('button',{on:{click:()=>stepVar(-1)}},'◀'),
+      h('button',{class:'tn',title:'Escolher outro timbre',on:{click:()=>openToneModal(s.ch)}}, t?t.name:'?'),
+      h('button',{on:{click:()=>stepVar(1)}},'▶'));
+    const seg=h('div',{class:'seg'}, ...[['left','Esquerda'],['all','Todo'],['right','Direita']].map(([k,l])=>h('button',{class:s.region===k?'on':'',on:{click:()=>{ s.region=k; save(); buildPalco(); }}},l)));
+    const fader=makeFader({title:'', sub:'', value:s.level, min:0, max:127, def:100,
+      onChange:v=>{ s.level=v; if (P.on && s.on){ clearInterval(ramps[s.ch]); M.cc(s.ch,11,v,`Expression ch${s.ch}=${v}`); } save(); }});
+    const onBtn=h('button',{class:'bigon'+(s.on?' on':''),on:{click:()=>{ s.on=!s.on; if (P.on){ if (s.on) ramp(s.ch,0,s.level,s.swell*1000); else ramp(s.ch,s.level,0,s.swell*1000); } save(); buildPalco(); }}}, s.on?'LIGADO':'desligado');
+    const swell=h('select',{title:'Tempo de entrada/saída',on:{change:e=>{ s.swell=+e.target.value; save(); }}}, ...[0,0.5,1,1.5,2,3].map(x=>h('option',{value:x,selected:x===s.swell}, x?`entrada ${String(x).replace('.',',')} s`:'entrada seca')));
+    const sus=h('button',{class:'small'+(s.sus?' on':''),title:'Recebe pedal de sustain',on:{click:()=>{ s.sus=!s.sus; if (!s.sus) M.cc(s.ch,64,0); save(); buildPalco(); }}}, 'Pedal');
+    const chSel=h('select',{title:'Canal MIDI deste som',on:{change:e=>{ const nc=+e.target.value; if (P.on){ M.cc(s.ch,123,0); } s.ch=nc; save(); if (P.on) palcoApplyAll(); buildPalco(); }}}, ...Array.from({length:16},(_,k)=>h('option',{value:k+1,selected:k+1===s.ch},'ch '+(k+1))));
+    grid.append(h('div',{class:'slot'+(s.on?' on':'')},
+      h('div',{class:'hd'}, h('b',{},s.name), chSel),
+      tsel, seg, fader, onBtn,
+      h('div',{class:'opts'}, swell, sus)));
+  });
 }
 
 /* ================= TIMBRES ================= */
@@ -1416,9 +1666,10 @@ function sendAll(){
 function scenes(){ return LS.get('e480b_scenes', {}); }
 function fillScenes(){ const s=$('#sceneSel'); const cur=s.value; s.innerHTML='<option value="">Cenas…</option>'+Object.keys(scenes()).sort().map(n=>`<option>${esc(n)}</option>`).join(''); s.value=cur; }
 function loadState(obj){
-  const layers=ST.layers, thruSrc=ST.thruSrc, thruAll=ST.thruAll, panelMap=ST.panelMap;
+  const layers=ST.layers, thruSrc=ST.thruSrc, thruAll=ST.thruAll, panelMap=ST.panelMap, palcoKeep=ST.palco;
   ST=Object.assign(defState(), JSON.parse(JSON.stringify(obj)));
   ST.panelMap=panelMap; // o mapeamento do painel é do aparelho, não da cena
+  if (!obj.palco || !ST.palco) ST.palco = palcoKeep; ST.palco.on = palcoKeep.on; // Palco tem cenas próprias
   for (let c=1;c<=16;c++) ST.parts[c]=Object.assign(defPart(c), ST.parts[c]||{});
   if (!obj.layers){ ST.layers=layers; ST.thruSrc=thruSrc; ST.thruAll=thruAll; }
   save(); buildMixer(); buildFx(); renderEditor(); renderLayers(); $('#mVol').value=ST.master.vol; sendAll();

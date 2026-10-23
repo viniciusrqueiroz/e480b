@@ -218,6 +218,10 @@ th{color:var(--dim);font-weight:500}
 <!-- MONITOR -->
 <section id="sec-mon">
   <h2>Monitor MIDI e ferramentas</h2>
+  <div class="card" style="margin-bottom:12px">
+    <div class="row"><b>Diagnóstico da conexão</b><span class="grow"></span><button class="small" id="diagRetry">Reconectar MIDI</button><button class="small" id="diagCopy">Copiar</button></div>
+    <pre id="diagBox" style="white-space:pre-wrap;font-size:12.5px;margin:8px 0 0;color:var(--dim)">—</pre>
+  </div>
   <div class="row" style="margin-bottom:8px">
     <label class="note"><input type="checkbox" id="fltAS" checked> esconder Active Sensing (FE)</label>
     <label class="note"><input type="checkbox" id="fltOut"> esconder saída</label>
@@ -261,7 +265,7 @@ th{color:var(--dim);font-weight:500}
 
 <script>
 'use strict';
-const APP_VERSION = 'v4 · 22/10/2026 23:45';
+const APP_VERSION = 'v5 · 22/10/2026 23:55';
 /* ================= DADOS (manual E-300 / implementação E-500/E-300) ================= */
 // nº, * = no painel, nome ; CC0 ; CC32 ; PC (1-128)
 const TONE_TXT = `001*Grand Piano1;8;64;1
@@ -839,34 +843,80 @@ async function initMidi(){
     document.querySelector('main').insertAdjacentHTML('afterbegin', `<div class="warnbox"><b>Este navegador não tem Web MIDI.</b> ${navigator.bluetooth ? 'Você ainda pode conectar um adaptador MIDI Bluetooth (M-VAVE) pelo botão "Bluetooth".' : 'No iPad o Safari não suporta MIDI. Abra este arquivo num navegador com Web MIDI (por exemplo um app "Web MIDI Browser" da App Store) ou no Chrome/Edge do Windows.'} O app abre assim mesmo, e tudo o que seria enviado aparece no Monitor.<br><span class="note">Diagnóstico: requestMIDIAccess = ${typeof navigator.requestMIDIAccess} · ${esc(navigator.userAgent)}</span><br><button onclick="location.reload()" style="margin-top:6px">Tentar de novo</button></div>`);
     return;
   }
+  diag('Web MIDI encontrado ('+typeof navigator.requestMIDIAccess+'). Pedindo acesso com SysEx…');
+  setStatus(false,'Pedindo acesso ao MIDI…');
   try {
-    APP.access = await navigator.requestMIDIAccess({sysex:true});
+    APP.access = await withTimeout(Promise.resolve(navigator.requestMIDIAccess({sysex:true})), 5000);
+    diag('Acesso com SysEx: OK');
   } catch(e){
-    try { APP.access = await navigator.requestMIDIAccess(); toast('MIDI sem SysEx: efeitos/escalas/leitura não vão funcionar'); }
-    catch(e2){ setStatus(false,'MIDI negado'); return; }
+    diag('Com SysEx falhou: '+(e&&e.message||e)+'. Tentando sem SysEx…');
+    try { APP.access = await withTimeout(Promise.resolve(navigator.requestMIDIAccess()), 5000); diag('Acesso sem SysEx: OK'); toast('MIDI sem SysEx: efeitos/escalas/leitura não vão funcionar'); }
+    catch(e2){ diag('Sem SysEx falhou: '+(e2&&e2.message||e2)); setStatus(false,'MIDI não respondeu (ver Monitor)'); return; }
   }
-  APP.access.onstatechange = fillPorts; fillPorts();
+  try { diag('outputs: '+describeObj(APP.access.outputs)+' · inputs: '+describeObj(APP.access.inputs)); } catch(e){ diag('descrição: '+e.message); }
+  try { APP.access.onstatechange = ()=>fillPorts(); } catch(e){ diag('onstatechange: '+e.message); }
+  fillPorts();
+  setTimeout(fillPorts,1000); setTimeout(fillPorts,3000); // alguns navegadores listam as portas com atraso
 }
+APP.diag=[]; APP.outList=[]; APP.inList=[];
+function diag(t){
+  APP.diag.push(new Date().toTimeString().slice(0,8)+'  '+t); if (APP.diag.length>60) APP.diag.shift();
+  const el=$('#diagBox'); if (el) el.textContent=APP.diag.join('\n');
+}
+function withTimeout(p,ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('sem resposta em '+(ms/1000)+' s')),ms))]); }
+function describeObj(x){
+  if (x===undefined||x===null) return String(x);
+  const t=typeof x, c=(x.constructor&&x.constructor.name)||'?';
+  return `${t}/${c}` + (typeof x.size==='number'?` size=${x.size}`:'') + (typeof x.length==='number'?` length=${x.length}`:'') + (typeof x.values==='function'?' .values':'') + (typeof x.forEach==='function'?' .forEach':'');
+}
+// aceita o formato atual (Map) e formatos antigos (função que devolve array, array, objeto)
+function listPorts(kind){
+  let x;
+  try { x = APP.access[kind]; if (typeof x==='function') x = x.call(APP.access); } catch(e){ diag(kind+': '+e.message); return []; }
+  let arr=[];
+  try {
+    if (!x) arr=[];
+    else if (Array.isArray(x)) arr=x.slice();
+    else if (typeof x.values==='function') arr=Array.from(x.values());
+    else if (typeof x.forEach==='function') x.forEach(p=>arr.push(p));
+    else if (typeof x.length==='number') arr=Array.from(x);
+    else arr=Object.keys(x).map(k=>x[k]);
+  } catch(e){ diag(kind+' (lista): '+e.message); }
+  return arr.filter(p=>p && typeof p==='object').map((p,i)=>({k:(p.id!==undefined && p.id!==null && p.id!=='') ? String(p.id) : kind[0]+i, p, name:p.name||('Porta '+(i+1))}));
+}
+let lastPortsTxt='';
 function fillPorts(){
-  const outs=[...APP.access.outputs.values()], ins=[...APP.access.inputs.values()];
+  if (!APP.access) return;
+  const outs=listPorts('outputs'), ins=listPorts('inputs');
+  APP.outList=outs; APP.inList=ins;
+  const txt=`Portas: ${outs.length} saída(s) [${outs.map(o=>o.name).join(', ')}] · ${ins.length} entrada(s) [${ins.map(o=>o.name).join(', ')}]`;
+  if (txt!==lastPortsTxt){ diag(txt); lastPortsTxt=txt; }
   const so=$('#outSel'), si=$('#inSel');
   const prevO = so.value || LS.get('e480b_out',''), prevI = si.value || LS.get('e480b_in','');
-  so.innerHTML='<option value="">—</option>'+outs.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join('');
-  si.innerHTML='<option value="">—</option>'+ins.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join('');
+  so.innerHTML='<option value="">—</option>'+outs.map(o=>`<option value="${esc(o.k)}">${esc(o.name)}</option>`).join('');
+  si.innerHTML='<option value="">—</option>'+ins.map(o=>`<option value="${esc(o.k)}">${esc(o.name)}</option>`).join('');
   if (BLE.chr) addBleOption();
-  const pick=(list,prev)=> list.find(p=>p.id===prev) || (list.length===1?list[0]:null);
-  if (prevO==='ble' && BLE.chr) so.value='ble'; else { const po=pick(outs,prevO); if (po) so.value=po.id; }
-  if (prevI==='ble' && BLE.chr) si.value='ble'; else { const pi=pick(ins,prevI); if (pi) si.value=pi.id; }
+  const pick=(list,prev)=> list.find(o=>o.k===prev) || (list.length===1?list[0]:null);
+  if (prevO==='ble' && BLE.chr) so.value='ble'; else { const po=pick(outs,prevO); if (po) so.value=po.k; }
+  if (prevI==='ble' && BLE.chr) si.value='ble'; else { const pi=pick(ins,prevI); if (pi) si.value=pi.k; }
   selectPorts();
 }
+function portByKey(list,k){ const o=list.find(x=>x.k===k); return o ? o.p : null; }
 function selectPorts(){
   const so=$('#outSel').value, si=$('#inSel').value;
-  APP.out = so==='ble' ? (BLE.chr?bleOut:null) : (so && APP.access ? APP.access.outputs.get(so) : null);
-  if (APP.inp && APP.inp!==bleIn) APP.inp.onmidimessage=null;
-  APP.inp = si==='ble' ? (BLE.chr?bleIn:null) : (si && APP.access ? APP.access.inputs.get(si) : null);
-  if (APP.inp && APP.inp!==bleIn) APP.inp.onmidimessage=onMidi;
+  APP.out = so==='ble' ? (BLE.chr?bleOut:null) : (so ? portByKey(APP.outList,so) : null);
+  if (APP.inp && APP.inp!==bleIn){ try { APP.inp.onmidimessage=null; } catch(e){} }
+  APP.inp = si==='ble' ? (BLE.chr?bleIn:null) : (si ? portByKey(APP.inList,si) : null);
+  if (APP.inp && APP.inp!==bleIn){
+    try { if (typeof APP.inp.open==='function') APP.inp.open(); } catch(e){}
+    try { APP.inp.onmidimessage=onMidi; } catch(e){ diag('Entrada: '+e.message); }
+  }
+  if (APP.out && APP.out!==bleOut){ try { if (typeof APP.out.open==='function') APP.out.open(); } catch(e){} }
   LS.set('e480b_out',so); LS.set('e480b_in',si);
-  setStatus(!!APP.out, APP.out ? (APP.out.name + (APP.inp?' ⇄ '+APP.inp.name:' (sem entrada)')) : 'Escolha a saída MIDI');
+  const nm = (sel)=>{ const o=$(sel); return o.selectedOptions[0] ? o.selectedOptions[0].textContent : ''; };
+  setStatus(!!APP.out, APP.out ? (nm('#outSel') + (APP.inp?' ⇄ '+nm('#inSel'):' (sem entrada)')) : ((APP.outList.length||APP.inList.length) ? 'Escolha a saída MIDI' : 'Nenhuma porta MIDI (ver Monitor)'));
+  const selTxt=`Selecionado: saída "${nm('#outSel')||'—'}", entrada "${nm('#inSel')||'—'}"`;
+  if ((so || si) && selTxt!==APP.lastSel){ diag(selTxt); APP.lastSel=selTxt; }
 }
 function setStatus(ok,txt){ $('#dot').classList.toggle('ok',ok); $('#status').textContent=txt; }
 
@@ -1298,6 +1348,11 @@ function init(){
   $('#btnGS').onclick=()=>{ if (confirm('Enviar GS Reset? Todas as partes voltam ao padrão.')) M.gsReset(); };
   $('#btnPanic').onclick=M.panic;
   $('#btnBle').onclick=bleConnect;
+  $('#diagRetry').onclick=()=>{ diag('Reconectando…'); APP.access=null; initMidi(); };
+  $('#diagCopy').onclick=()=>copy(APP.diag.join('\n') + '\n' + APP_VERSION + '\n' + navigator.userAgent);
+  $('#status').parentElement.style.cursor='pointer';
+  $('#status').parentElement.onclick=()=>showTab('mon');
+  diag(APP_VERSION + ' · ' + navigator.userAgent);
   $('#btnSendAll').onclick=sendAll;
   $('#tmClose').onclick=()=>$('#toneModal').classList.remove('show');
   $('#toneModal').addEventListener('click',e=>{ if (e.target.id==='toneModal') $('#toneModal').classList.remove('show'); });

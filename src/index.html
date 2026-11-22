@@ -56,6 +56,13 @@ h3{font-size:15px;margin:14px 0 8px;color:var(--accent2)}
 .scn.cur .k{color:#333}
 .scn.saving{outline:2px dashed var(--accent)}
 .scnsave{min-width:120px;font-weight:600}
+.scnbtns{display:flex;flex-direction:column;gap:6px}
+.scnbtns .scnsave{flex:1}
+#palDelMode.on{background:var(--bad);border-color:var(--bad);color:#111}
+.scn.deleting{outline:2px dashed var(--bad)}
+.velbox{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+.velbar{width:70px;height:8px;border-radius:4px;background:var(--panel2);overflow:hidden;border:1px solid var(--line)}
+.velbar i{display:block;height:100%;width:0;background:var(--ok);transition:width .08s}
 /* palco */
 .pal-top{gap:10px;margin-bottom:10px}
 button.big{padding:12px 18px;font-size:16px;font-weight:700}
@@ -136,6 +143,8 @@ button.star.on{background:none;border:none;color:var(--warn)}
   .scn{min-height:46px;padding:5px 2px;font-size:12px}
   .scn .k{font-size:10px}
   .scnsave{min-width:0;padding:8px}
+  .scnbtns{flex-direction:row}
+  .velbox{display:none}
   .pal-top{gap:6px}
   button.big{padding:8px 12px;font-size:14px}
   #palLocal{display:none}
@@ -182,7 +191,7 @@ button.star.on{background:none;border:none;color:var(--warn)}
 <section id="sec-palco" class="show">
   <div class="scnbar">
     <div class="scngrid" id="palScenes"></div>
-    <button id="palSaveMode" class="scnsave">💾 Salvar cena</button>
+    <div class="scnbtns"><button id="palSaveMode" class="scnsave">💾 Salvar cena</button><button id="palDelMode" class="scnsave">🗑 Apagar cena</button></div>
   </div>
   <div class="row pal-top">
     <button id="palOn" class="big">Palco: desligado</button>
@@ -191,6 +200,8 @@ button.star.on{background:none;border:none;color:var(--warn)}
     <span class="note">Split</span>
     <button id="splDn">−</button><b id="splLbl" style="min-width:44px;text-align:center">C4</b><button id="splUp">+</button>
     <button id="splLearn">Definir tocando</button>
+    <span class="velbox" title="Força da última nota tocada">Toque <span class="velbar"><i id="velBar"></i></span><b id="velNum">—</b></span>
+    <button id="palResend" title="Manda de novo a cena inteira para o teclado">🔄 <span class="lg">Reenviar</span></button>
   </div>
   <div class="pal-grid" id="palSlots"></div>
   <p class="note">Com o Palco ligado, o teclado deixa de tocar sozinho (Local Off): as notas vão ao app e voltam para os 4 sons. Os outros canais ficam em silêncio. Esquerda = notas abaixo do split; Direita = do split para cima. O fader controla a expressão de cada som. Precisa de Saída e Entrada MIDI.</p>
@@ -260,6 +271,12 @@ button.star.on{background:none;border:none;color:var(--warn)}
   <input type="file" id="xfFile" accept=".json,.txt,application/json,text/plain" hidden>
 </div></div>
 
+<!-- janela: confirmação -->
+<div class="modal" id="confModal"><div class="card" style="width:min(420px,100%)">
+  <b id="cfText">Confirmar?</b>
+  <div class="row" style="margin-top:14px"><span class="grow"></span><button id="cfCancel">Cancelar</button><button id="cfOk" class="danger">Apagar</button></div>
+</div></div>
+
 <!-- janela: nome da cena -->
 <div class="modal" id="nameModal"><div class="card" style="width:min(420px,100%)">
   <b>Nome da cena</b>
@@ -271,7 +288,7 @@ button.star.on{background:none;border:none;color:var(--warn)}
 
 <script>
 'use strict';
-const APP_VERSION = 'v25 · 23/10/2026 20:50';
+const APP_VERSION = 'v26 · 22/11/2026 15:40';
 
 /* ================= UTILITÁRIOS ================= */
 function $(s,r=document){ return r.querySelector(s); }
@@ -624,13 +641,15 @@ function loadState(){
   }
   st=Object.assign(defState(), st);
   st.palco=Object.assign({on:false, split:60, slots:defSlots()}, st.palco);
-  st.palco.on=false; // nunca liga sozinho ao abrir
+  WANT_PALCO=!!st.palco.on; // religa quando a conexão MIDI estiver pronta (ver selectPorts)
+  st.palco.on=false;
   st.palco.slots.forEach(fxOf);
   return st;
 }
 // ordem dos tipos de EFX da versão completa (para migrar o índice salvo)
 const OLD_EFX=[[0,0],[1,0],[1,1],[1,2],[1,0x10],[1,0x11],[1,0x20],[1,0x21],[1,0x22],[1,0x23],[1,0x24],[1,0x30],[1,0x31],[1,0x40],[1,0x41],[1,0x42],[1,0x43],[1,0x50],[1,0x51],[1,0x52],[1,0x53],[1,0x54],[1,0x55],[1,0x56],[1,0x60],[1,0x61],[2,0],[2,1],[2,2],[2,3],[2,4],[2,5],[2,6],[2,7],[2,8],[2,9],[2,0xA],[2,0xB],[0x11,0],[0x11,1],[0x11,2]];
 function fxOf(s){ if (!s.fx) s.fx={}; for (const k in FX_DEF) if (s.fx[k]===undefined) s.fx[k]=FX_DEF[k]; if (s.oct==null) s.oct=0; return s.fx; }
+let WANT_PALCO=false;
 let ST=loadState();
 let saveT=null; function save(){ clearTimeout(saveT); saveT=setTimeout(()=>LS.set('e480b_v2',ST),300); }
 const APP={access:null, out:null, inp:null, outList:[], inList:[], paused:false, log:[], diag:[], learnSplit:false, localOff:false, palSave:false, palScene:null, pickSlot:0, pickCat:'fav', fxSlot:0};
@@ -674,19 +693,25 @@ function sendRaw(bytes,label){
   try { APP.out.send(Array.from(bytes), (window.performance&&performance.now)?performance.now():0); logLine('out',bytes,label); return true; }
   catch(e){ logLine('out',bytes,'ERRO: '+e.message,true); return false; }
 }
-// SysEx: 45 ms entre pacotes (exigência Roland) e fusão por endereço
+// Fila de envio: as notas tocadas vão direto (sendRaw), mas ajustes saem um por vez, com intervalo,
+// porque o adaptador Bluetooth perde mensagens quando recebe muitas de uma vez.
+// SysEx: 45 ms (exigência Roland). Uma mensagem nova com a mesma chave substitui a que ainda está na fila.
+const GAP={cc:12, nrpn:20, sx:45};
 const sxq=[]; let sxTimer=null;
-function queueSysex(bytes,label,key){ if (key){ const i=sxq.findIndex(e=>e.key===key); if (i>=0){ sxq[i]={bytes,label,key}; return; } } sxq.push({bytes,label,key}); pump(); }
-function pump(){ if (sxTimer) return; const step=()=>{ const e=sxq.shift(); if (!e){ sxTimer=null; return; } sendRaw(e.bytes,e.label); sxTimer=setTimeout(step,45); }; step(); }
+function enqueue(bytes,label,key,gap){ if (key){ const i=sxq.findIndex(e=>e.key===key); if (i>=0){ sxq[i]={bytes,label,key,gap}; return; } } sxq.push({bytes,label,key,gap}); pump(); }
+function pump(){ if (sxTimer) return; const step=()=>{ const e=sxq.shift(); if (!e){ sxTimer=null; return; } sendRaw(e.bytes,e.label); sxTimer=setTimeout(step,e.gap); }; step(); }
+function queueSysex(bytes,label,key){ enqueue(bytes,label,key?'sx:'+key:null,GAP.sx); }
 function dt1(addr,data,label){ const body=[...addr,...data]; queueSysex([0xF0,0x41,0x10,0x42,0x12,...body,rolandSum(body),0xF7], label||('DT1 '+hex(addr)), addr.join('.')); }
 const M={
   noteOn(ch,n,v){ sendRaw([0x90|(ch-1),n&127,v&127]); },
   noteOff(ch,n){ sendRaw([0x80|(ch-1),n&127,64]); },
-  cc(ch,c,v,label){ sendRaw([0xB0|(ch-1),c&127,clamp(v,0,127)],label); },
-  tone(ch,t){ M.cc(ch,0,t.msb,`Bank MSB ${t.msb} ch${ch}`); M.cc(ch,32,t.lsb,`Bank LSB ${t.lsb} ch${ch}`); sendRaw([0xC0|(ch-1),(t.pc-1)&127],`Program ${t.pc} ch${ch} (${t.name})`); },
-  nrpn(ch,msb,lsb,val,label){ const s=0xB0|(ch-1); sendRaw([s,99,msb, s,98,lsb, s,6,clamp(val,0,127), s,99,127, s,98,127], label); },
+  // Bank Select (CC0/32) nunca é fundido: precisa chegar junto do Program Change
+  cc(ch,c,v,label){ enqueue([0xB0|(ch-1),c&127,clamp(v,0,127)],label,(c===0||c===32)?null:`cc:${ch}:${c}`,GAP.cc); },
+  tone(ch,t){ M.cc(ch,0,t.msb,`Bank MSB ${t.msb} ch${ch}`); M.cc(ch,32,t.lsb,`Bank LSB ${t.lsb} ch${ch}`); enqueue([0xC0|(ch-1),(t.pc-1)&127],`Program ${t.pc} ch${ch} (${t.name})`,null,GAP.cc); },
+  nrpn(ch,msb,lsb,val,label){ const s=0xB0|(ch-1); enqueue([s,99,msb, s,98,lsb, s,6,clamp(val,0,127), s,99,127, s,98,127], label, `nrpn:${ch}:${msb}:${lsb}`, GAP.nrpn); },
   notesOff(ch){ M.cc(ch,64,0); M.cc(ch,123,0); },
-  panic(){ for (let c=1;c<=16;c++){ M.cc(c,64,0); M.cc(c,120,0); M.cc(c,123,0); } toast('Pânico: todas as notas desligadas'); }
+  // pânico: limpa a fila e manda direto
+  panic(){ sxq.length=0; for (let c=1;c<=16;c++){ sendRaw([0xB0|(c-1),64,0]); sendRaw([0xB0|(c-1),120,0]); sendRaw([0xB0|(c-1),123,0]); } toast('Pânico: todas as notas desligadas'); }
 };
 
 /* ================= MIDI: PORTAS ================= */
@@ -772,6 +797,8 @@ function selectPorts(){
   if (APP.out && APP.inp) setStatus(true, nm('#outSel')===nm('#inSel') ? nm('#outSel') : nm('#outSel')+' ⇄ '+nm('#inSel'));
   else if (APP.out) setStatus(false, nm('#outSel')+' (falta entrada)');
   else setStatus(false, (APP.outList.length||APP.inList.length)?'Escolha a porta (toque aqui)':'Nenhuma porta MIDI');
+  // ao abrir com o Palco ligado da última vez: religa e manda a cena inteira
+  if (APP.out && APP.inp && WANT_PALCO && !ST.palco.on){ WANT_PALCO=false; setTimeout(()=>{ if (!ST.palco.on && palcoOn()){ buildPalco(); toast('Palco religado: cena enviada ao teclado'); } },400); }
 }
 
 /* ================= BLUETOOTH DIRETO (Web Bluetooth, BLE-MIDI) ================= */
@@ -835,6 +862,7 @@ function onMidi(ev){
   const st=b[0]; if (st>=0xF0) return;
   const ch=(st&15)+1, t=st&0xF0;
   if (ch!==ST.tx) return;
+  if (t===0x90 && b[2]>0){ const bar=$('#velBar'); if (bar){ bar.style.width=(b[2]/127*100)+'%'; $('#velNum').textContent=b[2]; } }
   if (APP.learnSplit && t===0x90 && b[2]>0){ setSplit(b[1]); APP.learnSplit=false; renderTop(); return; }
   if (t===0xB0 && b[1]===1 && ST.rotLever!=='off' && rotaryInUse()){ leverRotary(b[2]); return; } // alavanca controla o Rotary (sem vibrato)
   if (ST.palco.on) route(t,b);
@@ -929,10 +957,23 @@ function applySlot(s){
   M.cc(s.ch,7,100,`Volume ch${s.ch}=100`); M.cc(s.ch,11,s.on?s.level:0,`Expressão ch${s.ch}=${s.on?s.level:0}`);
   sendFx(s);
 }
+// manda a cena inteira para o teclado. prev = estado anterior dos sons (para fazer as rampas de entrada/saída)
+function sendAll(prev){
+  const P=ST.palco;
+  P.slots.forEach(s=>M.tone(s.ch,toneByNo(s.tone)||TONES[0]));              // 1º timbres
+  P.slots.forEach((s,k)=>{ const o=prev&&prev[k];
+    M.cc(s.ch,7,100,`Volume ch${s.ch}=100`);
+    if (o && o.ch===s.ch && s.on!==o.on) ramp(s.ch, o.on?o.level:0, s.on?s.level:0, s.swell*1000);
+    else { clearInterval(ramps[s.ch]); M.cc(s.ch,11,s.on?s.level:0,`Expressão ch${s.ch}=${s.on?s.level:0}`); } });
+  silenceOthers(true);                                                     // 2º silencia o resto
+  sendGlobals();                                                           // 3º tipos de reverb/chorus/DSP
+  P.slots.forEach(s=>{ dt1(PA(s.ch,0x0F),[1],`Recebe pedal ch${s.ch}`); sendFx(s); }); // 4º ajustes de cada som
+}
 function palcoOn(){
   if (!APP.out || !APP.inp){ toast('Escolha Saída e Entrada MIDI primeiro (⚙ Conexão)'); return false; }
-  ST.palco.on=true; setLocal(false); silenceOthers(true); sendGlobals(); ST.palco.slots.forEach(applySlot); save(); return true;
+  ST.palco.on=true; setLocal(false); sendAll(null); save(); return true;
 }
+function resendAll(){ if (!ST.palco.on){ toast('Ligue o Palco primeiro'); return; } sxq.length=0; setLocal(false); sendAll(null); toast('Cena reenviada ao teclado'); }
 function palcoOff(){
   ST.palco.on=false; ST.palco.slots.forEach(s=>{ clearInterval(ramps[s.ch]); M.notesOff(s.ch); M.cc(s.ch,11,127); }); held.clear();
   setLocal(true); silenceOthers(false); save();
@@ -961,18 +1002,11 @@ function loadScene(sc,i){
   const d=sceneDsp(sc); if (d!=null) ST.dsp=d; if (sc.dspDepth!=null) ST.dspDepth=sc.dspDepth;
   APP.palScene=i;
   if (!P.on){ if (palcoOn()) toast('Palco ligado · '+sc.name); save(); buildPalco(); return; }
-  // em tempo real: só envia o que mudou
+  // manda a cena inteira (o que mudou e o que não mudou), para o teclado ficar igual à tela
+  sxq.length=0;
   const now=slotChans();
   prevChans.forEach(c=>{ if (!now.has(c)){ M.notesOff(c); M.cc(c,7,0,`Volume ch${c}=0 (Palco)`); } });
-  if ([ST.rev,ST.cho,ST.dsp,ST.dspDepth].join()!==prevG) sendGlobals(); else { if (isRotary() && prevRot!==ST.rotFast) sendRotary(); if (prevPar!==ST.dspParam) sendDspParam(); }
-  P.slots.forEach((s,k)=>{ const o=prev[k];
-    if (!o || o.ch!==s.ch){ if (o){ M.notesOff(o.ch); } applySlot(s); return; }
-    if (o.tone!==s.tone) M.tone(s.ch,toneByNo(s.tone)||TONES[0]);
-    if (o.tone!==s.tone || o.fx!==JSON.stringify(s.fx) || [ST.dsp].join()!==prevG.split(',')[2]) sendFx(s);
-    if (s.on && !o.on) ramp(s.ch,0,s.level,s.swell*1000);
-    else if (!s.on && o.on) ramp(s.ch,o.level,0,s.swell*1000);
-    else if (s.on && o.level!==s.level){ clearInterval(ramps[s.ch]); M.cc(s.ch,11,s.level); }
-  });
+  sendAll(prev);
   save(); buildPalco(); toast('Cena: '+sc.name);
 }
 /* ---- exportar / importar ---- */
@@ -1007,6 +1041,11 @@ function doImport(txt){
   try{ localStorage.removeItem('e480b_state'); }catch(e){} // evita reimportar dados antigos por cima
   toast('Importado! Recarregando…'); setTimeout(()=>location.reload(),700);
 }
+function askConfirm(text, onOk, onCancel){
+  const m=$('#confModal'); $('#cfText').textContent=text; m.classList.add('show');
+  const done=ok=>{ m.classList.remove('show'); $('#cfOk').onclick=$('#cfCancel').onclick=null; if (ok) onOk(); else if (onCancel) onCancel(); };
+  $('#cfOk').onclick=()=>done(true); $('#cfCancel').onclick=()=>done(false);
+}
 function askName(def, onOk, onCancel){
   const m=$('#nameModal'), inp=$('#nmInput'); inp.value=def; m.classList.add('show');
   setTimeout(()=>{ try{ inp.focus(); inp.select(); }catch(e){} },60);
@@ -1016,7 +1055,12 @@ function askName(def, onOk, onCancel){
 }
 function renderScenes(){
   const box=$('#palScenes'); box.innerHTML='';
-  scenes().forEach((sc,i)=>box.append(h('button',{class:'scn'+(sc?' has':'')+(APP.palScene===i?' cur':'')+(APP.palSave?' saving':''),on:{click:()=>{
+  scenes().forEach((sc,i)=>box.append(h('button',{class:'scn'+(sc?' has':'')+(APP.palScene===i?' cur':'')+(APP.palSave?' saving':'')+(APP.palDel&&sc?' deleting':''),on:{click:()=>{
+    if (APP.palDel){
+      if (!sc){ toast('Essa cena já está vazia'); return; }
+      askConfirm(`Apagar a cena ${i+1} "${sc.name}"?`, ()=>{ const all=scenes(); all[i]=null; LS.set('e480b_palscenes',all); if (APP.palScene===i) APP.palScene=null; APP.palDel=false; renderScenes(); toast('Cena apagada'); },
+        ()=>{ APP.palDel=false; renderScenes(); });
+      return; }
     if (APP.palSave){
       // janela própria: os navegadores do iPad e o app do Claude bloqueiam as caixas de texto padrão
       askName(sc?sc.name:`Cena ${i+1}`, n=>{ const all=scenes(); all[i]=snapshot(n); LS.set('e480b_palscenes',all); APP.palSave=false; APP.palScene=i; renderScenes(); toast('Cena salva: '+n); },
@@ -1026,6 +1070,7 @@ function renderScenes(){
     loadScene(sc,i);
   }}}, h('span',{class:'k'},String(i+1)), h('span',{}, sc?sc.name:'vazia'))));
   const sv=$('#palSaveMode'); sv.classList.toggle('on',APP.palSave); sv.textContent=APP.palSave?'Toque numa cena…':'💾 Salvar cena';
+  const dv=$('#palDelMode'); dv.classList.toggle('on',!!APP.palDel); dv.textContent=APP.palDel?'Toque na cena a apagar…':'🗑 Apagar cena';
 }
 
 /* ---- tela do Palco ---- */
@@ -1237,7 +1282,9 @@ function init(){
   $('#statusPill').onclick=()=>showConn(true); $('#btnBack').onclick=()=>showConn(false);
   $('#btnPanic').onclick=M.panic;
   $('#palOn').onclick=palcoToggle;
-  $('#palSaveMode').onclick=()=>{ APP.palSave=!APP.palSave; renderScenes(); toast(APP.palSave?'Toque na cena onde quer salvar o estado atual':'Cancelado'); };
+  $('#palSaveMode').onclick=()=>{ APP.palSave=!APP.palSave; APP.palDel=false; renderScenes(); toast(APP.palSave?'Toque na cena onde quer salvar o estado atual':'Cancelado'); };
+  $('#palDelMode').onclick=()=>{ APP.palDel=!APP.palDel; APP.palSave=false; renderScenes(); toast(APP.palDel?'Toque na cena que quer apagar':'Cancelado'); };
+  $('#palResend').onclick=resendAll;
   $('#splDn').onclick=()=>setSplit(ST.palco.split-1); $('#splUp').onclick=()=>setSplit(ST.palco.split+1);
   $('#splLearn').onclick=()=>{ APP.learnSplit=!APP.learnSplit; renderTop(); if (APP.learnSplit) toast('Toque no teclado a primeira nota da mão direita'); };
   $('#tmClose').onclick=()=>$('#toneModal').classList.remove('show');

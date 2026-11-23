@@ -57,6 +57,13 @@ h3{font-size:15px;margin:14px 0 8px;color:var(--accent2)}
 .scn.saving{outline:2px dashed var(--accent)}
 .scnsave{min-width:120px;font-weight:600}
 .scnbtns{display:flex;flex-direction:column;gap:6px}
+.vtgrid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
+@media (max-width:600px){.vtgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.vtgrid button{padding:10px 0;font-weight:600;position:relative}
+.vtgrid button small{display:block;font-size:10px;font-weight:400;color:var(--dim)}
+.vtgrid button.ok{border-color:var(--ok);color:var(--ok)}
+.vtgrid button.bad{border-color:var(--bad);color:var(--bad)}
+.vtgrid button.run{background:var(--accent);color:#111;border-color:var(--accent)}
 .scnbtns .scnsave{flex:1}
 #palDelMode.on{background:var(--bad);border-color:var(--bad);color:#111}
 .scn.deleting{outline:2px dashed var(--bad)}
@@ -217,6 +224,9 @@ button.star.on{background:none;border:none;color:var(--warn)}
       <label>Entrada (do teclado)<select id="inSel"><option value="">—</option></select></label>
       <div class="row" style="margin-bottom:10px"><button id="btnBle">Bluetooth direto</button><span class="note">Chrome/Edge no Windows. No iPad, pareie o M-VAVE pelo sistema; ele aparece como "Bluetooth" acima.</span></div>
       <label>Canal em que o teclado transmite (padrão 1)<select id="txSel"></select></label>
+      <label>Desligar o som do teclado ao ligar o Palco (Local Off)<select id="localSel">
+        <option value="auto">Automático, por MIDI</option>
+        <option value="manual">Manual, pelo painel (o app só lembra)</option></select></label>
       <label>Espaço no topo para a barra do navegador<select id="gapSel"></select></label>
       <h3>Cenas e favoritos</h3>
       <p class="note" style="margin-top:0">Para levar suas cenas, favoritos e mapeamentos para outro endereço ou aparelho.</p>
@@ -226,6 +236,17 @@ button.star.on{background:none;border:none;color:var(--warn)}
       <div class="row"><h3 style="margin:0">Diagnóstico</h3><span class="grow"></span><button class="small" id="diagRetry">Reconectar MIDI</button><button class="small" id="diagCopy">Copiar</button></div>
       <pre id="diagBox">—</pre>
     </div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <h3 style="margin-top:0">Teste de toque por canal</h3>
+    <p class="note" style="margin-top:0">Toca um piano no canal escolhido em três forças: <b>fraco, médio e forte</b>. Se o volume não mudar, aquele canal está sem sensibilidade. Depois marque o resultado.</p>
+    <div class="row" style="margin-bottom:8px">
+      <label class="note"><input type="checkbox" id="vtFix"> Corrigir a sensibilidade antes de tocar</label>
+      <span class="grow"></span><button class="small" id="vtAll">Testar 1 → 16</button><button class="small" id="vtCopy">Copiar resultado</button>
+    </div>
+    <div class="vtgrid" id="vtGrid"></div>
+    <div class="row" id="vtAsk" style="margin-top:10px;display:none"><span id="vtMsg" class="note"></span><span class="grow"></span>
+      <button class="small" id="vtYes">✅ Variou</button><button class="small" id="vtNo">❌ Ficou igual</button><button class="small" id="vtAgain">↻ Repetir</button></div>
   </div>
   <div class="card" style="margin-top:12px">
     <h3 style="margin-top:0">Controlador MIDI (opcional)</h3>
@@ -271,6 +292,13 @@ button.star.on{background:none;border:none;color:var(--warn)}
   <input type="file" id="xfFile" accept=".json,.txt,application/json,text/plain" hidden>
 </div></div>
 
+<!-- janela: aviso do Local Control manual -->
+<div class="modal" id="localModal"><div class="card" style="width:min(460px,100%)">
+  <p id="lhText" style="margin:0 0 6px"></p>
+  <p class="note" style="margin:0">No teclado: botão <b>Utility</b> → página <b>MIDI: Tx MIDI Ch. / Local Control</b> → botões à direita do visor.</p>
+  <div class="row" style="margin-top:12px"><span class="grow"></span><button id="lhOk" class="acc">Ok</button></div>
+</div></div>
+
 <!-- janela: confirmação -->
 <div class="modal" id="confModal"><div class="card" style="width:min(420px,100%)">
   <b id="cfText">Confirmar?</b>
@@ -288,7 +316,7 @@ button.star.on{background:none;border:none;color:var(--warn)}
 
 <script>
 'use strict';
-const APP_VERSION = 'v26 · 22/11/2026 15:40';
+const APP_VERSION = 'v27 · 22/11/2026 23:05';
 
 /* ================= UTILITÁRIOS ================= */
 function $(s,r=document){ return r.querySelector(s); }
@@ -626,7 +654,7 @@ function defSlots(){ return [
   {ch:12, tone:14,  region:'all', on:false, level:90,  swell:0,   sus:true,  oct:0},
   {ch:13, tone:50,  region:'all', on:false, level:80,  swell:0.5, sus:false, oct:0},
   {ch:14, tone:224, region:'all', on:false, level:85,  swell:1.5, sus:true,  oct:0}]; }
-function defState(){ return {palco:{on:false, split:60, slots:defSlots()}, rev:4, cho:2, dsp:0, dspDepth:127, rotFast:false, rotLever:'toggle', dspParam:null, tx:1, ctl:{inKey:'', outKey:'', map:{}}}; }
+function defState(){ return {palco:{on:false, split:60, slots:defSlots()}, rev:4, cho:2, dsp:0, dspDepth:127, rotFast:false, rotLever:'toggle', dspParam:null, tx:1, localMode:'auto', ctl:{inKey:'', outKey:'', map:{}}}; }
 function loadState(){
   let st=LS.get('e480b_v2',null);
   if (!st){ // migra os dados da versão completa (v19 e anteriores)
@@ -894,7 +922,18 @@ function ramp(ch,from,to,ms){
   const steps=Math.max(1,Math.round(ms/40)); let i=0;
   ramps[ch]=setInterval(()=>{ i++; sendRaw([0xB0|(ch-1),11,clamp(Math.round(from+(to-from)*i/steps),0,127)],`Expressão ch${ch} (rampa)`); if (i>=steps) clearInterval(ramps[ch]); },40);
 }
-function setLocal(on){ M.cc(ST.tx,122,on?127:0,`Local Control ${on?'ON':'OFF'} ch${ST.tx}`); APP.localOff=!on; }
+function setLocal(on){
+  APP.localOff=!on;
+  if (ST.localMode==='manual'){ showLocalHint(on); return; }
+  // o E-300 reconhece Local On/Off, mas o manual não diz em qual canal: manda em todos
+  for (let c=1;c<=16;c++) M.cc(c,122,on?127:0,`Local Control ${on?'ON':'OFF'} ch${c}`);
+}
+function showLocalHint(on){
+  $('#lhText').innerHTML = on
+    ? '<b>Palco desligado.</b> No painel do teclado, volte <b>Local Control para ON</b>, senão as teclas ficam mudas.'
+    : '<b>Palco ligado.</b> No painel do teclado, coloque <b>Local Control em OFF</b> para não tocar o som do teclado junto com o do app.';
+  $('#localModal').classList.add('show');
+}
 function setSplit(n){ ST.palco.split=clamp(n,0,127); save(); renderTop(); toast('Split: '+noteName(ST.palco.split)); }
 const slotChans=()=>new Set(ST.palco.slots.map(s=>s.ch));
 // silencia (ou devolve) todos os canais que não são do Palco: painel, arranjador, bateria
@@ -946,7 +985,7 @@ function sendFx(s,only){
   if (go('att')) M.nrpn(ch,1,0x63,f.att,`Ataque ch${ch}=${f.att-64}`);
   if (go('rel')) M.nrpn(ch,1,0x66,f.rel,`Release ch${ch}=${f.rel-64}`);
   if (go('vib')) M.nrpn(ch,1,0x09,f.vib,`Vibrato ch${ch}=${f.vib-64}`);
-  if (go('vel')) dt1(PA(ch,0x1A),[f.vel],`Toque ch${ch}=${f.vel}`);
+  if (go('vel')){ dt1(PA(ch,0x1A),[f.vel],`Toque ch${ch}=${f.vel}`); dt1(PA(ch,0x1B),[64],`Toque offset ch${ch}=64`); }
   if (go('dsp')){ const [m,l]=DSP_TYPES[ST.dsp]||[0,0]; dt1(PA4(ch,0x23), f.dsp?[m,l]:[0,0], `DSP ch${ch} ${f.dsp?'ligado':'desligado'}`); }
 }
 const fxChanged=s=>{ const f=fxOf(s); return Object.keys(FX_DEF).some(k=>f[k]!==FX_DEF[k]); };
@@ -969,6 +1008,44 @@ function sendAll(prev){
   sendGlobals();                                                           // 3º tipos de reverb/chorus/DSP
   P.slots.forEach(s=>{ dt1(PA(s.ch,0x0F),[1],`Recebe pedal ch${s.ch}`); sendFx(s); }); // 4º ajustes de cada som
 }
+/* ---- teste de toque por canal ---- */
+APP.vt={res:{}, cur:null, busy:false, queue:[]};
+const VT_PIANO={msb:8,lsb:64,pc:1,name:'Grand Piano1'};
+function renderVt(){
+  const g=$('#vtGrid'); if (!g) return; g.innerHTML='';
+  const slotOf=c=>ST.palco.slots.findIndex(s=>s.ch===c);
+  for (let c=1;c<=16;c++){
+    const r=APP.vt.res[c], si=slotOf(c);
+    g.append(h('button',{class:(APP.vt.cur===c?'run':r==='ok'?'ok':r==='bad'?'bad':''),on:{click:()=>{ APP.vt.queue=[]; vtRun(c); }}},
+      'Ch '+c, h('small',{}, c===10?'bateria':si>=0?`som ${si+1}`:(r==='ok'?'variou':r==='bad'?'igual':''))));
+  }
+}
+function vtRun(c){
+  if (!APP.out){ toast('Escolha a Saída MIDI primeiro'); return; }
+  if (APP.vt.busy) return;
+  APP.vt.busy=true; APP.vt.cur=c; renderVt();
+  $('#vtAsk').style.display='none';
+  if (c!==10) M.tone(c,VT_PIANO);
+  M.cc(c,7,100,`Volume ch${c}=100 (teste)`); M.cc(c,11,127,`Expressão ch${c}=127 (teste)`);
+  if ($('#vtFix').checked){ dt1(PA(c,0x1A),[64],`Toque ch${c}=64 (teste)`); dt1(PA(c,0x1B),[64],`Toque offset ch${c}=64 (teste)`); }
+  // espera a fila terminar antes de tocar
+  const start=()=>{ if (sxq.length || sxTimer){ setTimeout(start,60); return; }
+    const n=c===10?38:60, vels=[[25,'fraco'],[75,'médio'],[127,'forte']]; let k=0;
+    const next=()=>{ if (k>=vels.length){ vtDone(c); return; }
+      const [v,l]=vels[k++]; $('#vtMsg').textContent=`Canal ${c}: ${l} (v${v})`; $('#vtAsk').style.display='flex';
+      sendRaw([0x90|(c-1),n,v],`Teste ch${c} ${l} v${v}`); setTimeout(()=>{ sendRaw([0x80|(c-1),n,64]); setTimeout(next,250); },650); };
+    next(); };
+  setTimeout(start,80);
+}
+function vtDone(c){
+  APP.vt.busy=false;
+  // devolve o canal como estava no Palco
+  if (ST.palco.on){ const s=ST.palco.slots.find(x=>x.ch===c); if (s) applySlot(s); else M.cc(c,7,0,`Volume ch${c}=0 (Palco)`); }
+  $('#vtMsg').textContent=`Canal ${c}: o volume mudou entre fraco, médio e forte?`+(APP.vt.queue.length?' (responda para seguir)':'');
+}
+// no "Testar 1 → 16", cada resposta passa para o próximo canal
+function vtMark(r){ const c=APP.vt.cur; if (!c || APP.vt.busy) return; APP.vt.res[c]=r; APP.vt.cur=null; renderVt(); $('#vtAsk').style.display='none';
+  if (APP.vt.queue.length){ const nx=APP.vt.queue.shift(); setTimeout(()=>vtRun(nx),300); } }
 function palcoOn(){
   if (!APP.out || !APP.inp){ toast('Escolha Saída e Entrada MIDI primeiro (⚙ Conexão)'); return false; }
   ST.palco.on=true; setLocal(false); sendAll(null); save(); return true;
@@ -1268,7 +1345,7 @@ function openFx(i){
 }
 
 /* ================= TELAS E INÍCIO ================= */
-function showConn(show){ $('#sec-palco').classList.toggle('show',!show); $('#sec-conn').classList.toggle('show',show); if (show){ renderLog(); renderCtl(); } else { APP.ctlLearn=null; buildPalco(); } }
+function showConn(show){ $('#sec-palco').classList.toggle('show',!show); $('#sec-conn').classList.toggle('show',show); if (show){ renderLog(); renderCtl(); renderVt(); } else { APP.ctlLearn=null; buildPalco(); } }
 function applyGap(g){ document.documentElement.style.setProperty('--gap',g+'px'); LS.set('e480b_gap',g); }
 function init(){
   $('#appVer').textContent=APP_VERSION; diag(APP_VERSION+' · '+navigator.userAgent);
@@ -1285,6 +1362,13 @@ function init(){
   $('#palSaveMode').onclick=()=>{ APP.palSave=!APP.palSave; APP.palDel=false; renderScenes(); toast(APP.palSave?'Toque na cena onde quer salvar o estado atual':'Cancelado'); };
   $('#palDelMode').onclick=()=>{ APP.palDel=!APP.palDel; APP.palSave=false; renderScenes(); toast(APP.palDel?'Toque na cena que quer apagar':'Cancelado'); };
   $('#palResend').onclick=resendAll;
+  if (!ST.localMode) ST.localMode='auto';
+  $('#localSel').value=ST.localMode; $('#localSel').onchange=e=>{ ST.localMode=e.target.value; save(); };
+  $('#lhOk').onclick=()=>$('#localModal').classList.remove('show');
+  $('#vtYes').onclick=()=>vtMark('ok'); $('#vtNo').onclick=()=>vtMark('bad'); $('#vtAgain').onclick=()=>{ const c=APP.vt.cur; if (c) vtRun(c); };
+  $('#vtAll').onclick=()=>{ if (APP.vt.busy) return; APP.vt.queue=Array.from({length:15},(_,i)=>i+2); vtRun(1); };
+  $('#vtCopy').onclick=()=>copy('Teste de toque por canal ('+APP_VERSION+')\n'+Array.from({length:16},(_,i)=>{ const r=APP.vt.res[i+1]; return `Ch ${i+1}: ${r==='ok'?'variou':r==='bad'?'FICOU IGUAL':'—'}`; }).join('\n'));
+  renderVt();
   $('#splDn').onclick=()=>setSplit(ST.palco.split-1); $('#splUp').onclick=()=>setSplit(ST.palco.split+1);
   $('#splLearn').onclick=()=>{ APP.learnSplit=!APP.learnSplit; renderTop(); if (APP.learnSplit) toast('Toque no teclado a primeira nota da mão direita'); };
   $('#tmClose').onclick=()=>$('#toneModal').classList.remove('show');
